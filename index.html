@@ -268,11 +268,16 @@
       safeApplyAtkinsonDither();
     }
 
-    function bestImage(sprites) {
-      return sprites?.other?.["official-artwork"]?.front_default ||
-        sprites?.other?.home?.front_default ||
-        sprites?.front_default ||
-        null;
+    function imageCandidates(sprites, pokemonId) {
+      const urls = [
+        // Tiny sprite is usually the most reliable on low-power browsers.
+        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
+        sprites?.front_default,
+        sprites?.other?.["official-artwork"]?.front_default,
+        sprites?.other?.home?.front_default
+      ];
+
+      return urls.filter((url, index, arr) => Boolean(url) && arr.indexOf(url) === index);
     }
 
     function imageFromUrl(url) {
@@ -293,6 +298,17 @@
           setTimeout(() => reject(new Error("Image load timeout")), timeoutMs);
         })
       ]);
+    }
+
+    async function loadFirstAvailableImage(urls, timeoutMs = 3500) {
+      for (const url of urls) {
+        try {
+          return await imageFromUrlWithTimeout(url, timeoutMs);
+        } catch {
+          // Try the next candidate URL.
+        }
+      }
+      return null;
     }
 
     function drawPokemonSilhouetteFallback(name) {
@@ -475,12 +491,8 @@
         // Render text and stats immediately; artwork can load in the background.
         drawInfo(pokemon, species, null);
 
-        try {
-          const img = await imageFromUrlWithTimeout(bestImage(pokemon.sprites), 3000);
-          drawInfo(pokemon, species, img);
-        } catch {
-          // Keep the already-rendered fallback silhouette.
-        }
+        const img = await loadFirstAvailableImage(imageCandidates(pokemon.sprites, pokemon.id), 3500);
+        if (img) drawInfo(pokemon, species, img);
       } catch (error) {
         console.error(error);
         drawError("Could not load Pokémon data from PokeAPI. Check network access, then reload.");
