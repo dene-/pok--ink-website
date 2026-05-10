@@ -1,505 +1,525 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pokédex Archive</title>
-  <style>
-    :root {
-      --paper-bg: #ffffff;
-      --ink: #000000;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=800" />
+<title>Pokédex Archive</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 800px;
+  height: 480px;
+  overflow: hidden;
+  background: #cc0000;
+  font-family: "Trebuchet MS", "Verdana", sans-serif;
+}
 
-    * {
-      box-sizing: border-box;
-    }
+.pokedex {
+  width: 800px;
+  height: 480px;
+  background: #cc0000;
+  display: grid;
+  grid-template-columns: 268px 1fr;
+  border: 4px solid #880000;
+  position: relative;
+}
 
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      min-height: 100%;
-      background: #242424;
-      display: grid;
-      place-items: center;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-    }
+.top-deco {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
 
-    .frame {
-      width: 800px;
-      height: 480px;
-      padding: 0;
-      margin: 0;
-      overflow: hidden;
-      background: var(--paper-bg);
-      box-shadow: 0 0 0 1px #000;
-    }
+.camera {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #88ccff, #0044cc);
+  border: 3px solid #000;
+  box-shadow: 0 0 0 2px #444;
+}
 
-    canvas {
-      display: block;
-      width: 800px;
-      height: 480px;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      background: var(--paper-bg);
-    }
-  </style>
+.lights { display: flex; gap: 5px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #000; }
+.dot.r { background: #ff2200; }
+.dot.y { background: #ffcc00; }
+.dot.g { background: #00cc44; }
+
+.hinge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 268px;
+  width: 6px;
+  background: #880000;
+  z-index: 5;
+  border-left: 2px solid #660000;
+  border-right: 2px solid #660000;
+}
+
+.left {
+  background: #cc0000;
+  padding: 50px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.left-meta {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.meta-txt {
+  font-family: "Courier New", monospace;
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffee00;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.screen-bezel {
+  width: 236px;
+  background: #222;
+  border: 5px solid #000;
+  border-radius: 6px;
+  padding: 5px;
+  box-shadow: 0 4px 0 #770000;
+  flex-shrink: 0;
+}
+
+.screen-inner {
+  background: #fff;
+  border: 3px solid #000;
+  border-radius: 2px;
+  width: 100%;
+  height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+#poke-img {
+  width: 170px;
+  height: 170px;
+  object-fit: contain;
+}
+
+.screen-led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #00ff44;
+  border: 2px solid #000;
+  margin: 5px auto 0;
+}
+
+.types-row { display: flex; gap: 8px; min-height: 30px; }
+
+.tpill {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border: 3px solid #000;
+  border-radius: 3px;
+  color: #fff;
+}
+
+.dpad-wrap { position: absolute; bottom: 12px; left: 12px; }
+.dpad { width: 52px; height: 52px; position: relative; }
+.dpad-h, .dpad-v { position: absolute; background: #111; border: 2px solid #555; border-radius: 2px; }
+.dpad-h { top: 33%; left: 0; right: 0; height: 34%; }
+.dpad-v { left: 33%; top: 0; bottom: 0; width: 34%; }
+.dpad-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 15px;
+  height: 15px;
+  background: #333;
+  border-radius: 50%;
+  border: 2px solid #555;
+}
+
+.buttons-wrap { position: absolute; bottom: 16px; right: 12px; display: flex; gap: 8px; }
+.btn-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.right {
+  background: #fff;
+  margin-left: 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.name-row {
+  border-bottom: 3px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+#poke-name {
+  font-family: "Courier New", monospace;
+  font-size: 30px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #000;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.num-genus { display: flex; gap: 10px; align-items: center; margin-top: 3px; }
+.num-tag { font-family: "Courier New", monospace; font-size: 14px; font-weight: 900; color: #000; }
+.genus-tag { font-size: 14px; font-weight: 900; color: #000; text-transform: uppercase; letter-spacing: 1px; }
+
+.desc-box {
+  background: #fff;
+  border: 3px solid #000;
+  border-radius: 3px;
+  padding: 8px 12px;
+  position: relative;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+.desc-box-label {
+  position: absolute;
+  top: -11px;
+  left: 8px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  color: #000;
+  letter-spacing: 2px;
+  padding: 0 4px;
+  text-transform: uppercase;
+}
+
+#poke-desc {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #000;
+  font-weight: 900;
+  min-height: 42px;
+}
+
+.stats-section { flex: 1; display: flex; flex-direction: column; margin-bottom: 8px; }
+.stats-header {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #000;
+  margin-bottom: 5px;
+  flex-shrink: 0;
+}
+
+.stats-list { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+.stat-row { display: flex; align-items: center; gap: 7px; }
+.stat-lbl {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 900;
+  color: #000;
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.stat-bar-horiz {
+  flex: 1;
+  height: 20px;
+  background: #eee;
+  border: 2px solid #000;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stat-fill-h { height: 100%; }
+.stat-num {
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  font-weight: 900;
+  color: #000;
+  width: 34px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.info-row { display: flex; gap: 7px; flex-wrap: nowrap; flex-shrink: 0; }
+.chip {
+  border: 2px solid #000;
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #000;
+  background: #fff;
+  white-space: nowrap;
+  flex: 1;
+  text-align: center;
+}
+
+.status-strip {
+  position: absolute;
+  bottom: 4px;
+  left: 278px;
+  color: #fff;
+  background: #7a0000;
+  border: 2px solid #000;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+</style>
 </head>
 <body>
-  <main class="frame" aria-label="Pokédex display">
-    <canvas id="display" width="800" height="480"></canvas>
-  </main>
+<div class="pokedex" aria-label="Pokédex display">
+  <div class="top-deco">
+    <div class="camera"></div>
+    <div class="lights">
+      <div class="dot r"></div>
+      <div class="dot y"></div>
+      <div class="dot g"></div>
+    </div>
+  </div>
 
-  <script>
-    const W = 800;
-    const H = 480;
-    const canvas = document.getElementById("display");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  <div class="hinge"></div>
 
-    const PALETTE = [
-      [255, 255, 255],
-      [0, 0, 0],
-      [255, 0, 0],
-      [0, 255, 0],
-      [0, 0, 255]
-    ];
+  <div class="left">
+    <div class="left-meta">
+      <span class="meta-txt" id="num-stamp">#----</span>
+      <span class="meta-txt" style="font-size:11px;max-width:120px;text-align:right" id="genus-tag-left">SEARCHING...</span>
+    </div>
 
-    const UI = {
-      white: "#ffffff",
-      paper: "#f7f7f1",
-      black: "#000000",
-      red: "#ff0000",
-      green: "#00ff00",
-      blue: "#0000ff"
-    };
+    <div class="screen-bezel">
+      <div class="screen-inner">
+        <img id="poke-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png" alt="Pokemon sprite" width="170" height="170" />
+      </div>
+      <div class="screen-led"></div>
+    </div>
 
-    const typeColors = {
-      normal: UI.black,
-      fire: UI.red,
-      water: UI.blue,
-      electric: UI.red,
-      grass: UI.green,
-      ice: UI.blue,
-      fighting: UI.red,
-      poison: UI.blue,
-      ground: UI.black,
-      flying: UI.blue,
-      psychic: UI.red,
-      bug: UI.green,
-      rock: UI.black,
-      ghost: UI.blue,
-      dragon: UI.blue,
-      dark: UI.black,
-      steel: UI.blue,
-      fairy: UI.red
-    };
+    <div class="types-row" id="types-row"></div>
 
-    const statLabels = {
-      hp: "HP",
-      attack: "ATK",
-      defense: "DEF",
-      "special-attack": "SAT",
-      "special-defense": "SDF",
-      speed: "SPD"
-    };
+    <div class="dpad-wrap">
+      <div class="dpad">
+        <div class="dpad-h"></div>
+        <div class="dpad-v"></div>
+        <div class="dpad-center"></div>
+      </div>
+    </div>
 
-    function px(value) {
-      return Math.round(value);
-    }
+    <div class="buttons-wrap">
+      <div class="btn-circle" style="background:#0044cc">A</div>
+      <div class="btn-circle" style="background:#cc0000">B</div>
+    </div>
+  </div>
 
-    function clear() {
-      ctx.fillStyle = UI.white;
-      ctx.fillRect(0, 0, W, H);
-    }
+  <div class="right">
+    <div class="name-row">
+      <div id="poke-name">SEARCHING...</div>
+      <div class="num-genus">
+        <span class="num-tag" id="num-tag2">#----</span>
+        <span class="genus-tag" id="genus-tag">LOADING</span>
+      </div>
+    </div>
 
-    function rect(x, y, w, h, fill = UI.white, stroke = UI.black, lineWidth = 2) {
-      x = px(x); y = px(y); w = px(w); h = px(h);
-      ctx.fillStyle = fill;
-      ctx.fillRect(x, y, w, h);
-      if (stroke && lineWidth > 0) {
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = stroke;
-        ctx.strokeRect(x + lineWidth / 2, y + lineWidth / 2, w - lineWidth, h - lineWidth);
-      }
-    }
+    <div class="desc-box">
+      <div class="desc-box-label">Pokedex Entry</div>
+      <p id="poke-desc">Fetching Pokemon data and preparing the species file.</p>
+    </div>
 
-    function line(x1, y1, x2, y2, color = UI.black, width = 2) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.moveTo(px(x1) + 0.5, px(y1) + 0.5);
-      ctx.lineTo(px(x2) + 0.5, px(y2) + 0.5);
-      ctx.stroke();
-      ctx.restore();
-    }
+    <div class="stats-section">
+      <div class="stats-header">Base Stats</div>
+      <div class="stats-list" id="stats-list"></div>
+    </div>
 
-    function circle(x, y, r, fill = UI.white, stroke = UI.black, lineWidth = 2) {
-      ctx.beginPath();
-      ctx.arc(px(x), px(y), px(r), 0, Math.PI * 2);
-      ctx.fillStyle = fill;
-      ctx.fill();
-      if (stroke && lineWidth > 0) {
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = stroke;
-        ctx.stroke();
-      }
-    }
+    <div class="info-row" id="info-row"></div>
+  </div>
 
-    function label(text, x, y, size = 18, color = UI.black, align = "left", weight = 700) {
-      ctx.fillStyle = color;
-      ctx.font = `${weight} ${size}px ui-monospace, Menlo, Consolas, monospace`;
-      ctx.textAlign = align;
-      ctx.textBaseline = "top";
-      ctx.fillText(text, px(x), px(y));
-    }
+  <div class="status-strip" id="status-strip">NETWORK: CONNECTING</div>
+</div>
 
-    function fitText(text, x, y, maxWidth, size, color = UI.black, align = "left", weight = 700) {
-      let fontSize = size;
-      ctx.font = `${weight} ${fontSize}px ui-monospace, Menlo, Consolas, monospace`;
-      while (ctx.measureText(text).width > maxWidth && fontSize > 11) {
-        fontSize -= 1;
-        ctx.font = `${weight} ${fontSize}px ui-monospace, Menlo, Consolas, monospace`;
-      }
-      label(text, x, y, fontSize, color, align, weight);
-    }
+<script>
+const SL = { hp: "HP", attack: "ATK", defense: "DEF", "special-attack": "SAT", "special-defense": "SDF", speed: "SPD" };
+const SC = { hp: "#dd0000", attack: "#dd5500", defense: "#0044cc", "special-attack": "#7700bb", "special-defense": "#007722", speed: "#0088aa" };
+const TC = {
+  fire: "#dd2200", water: "#0055cc", grass: "#226600", electric: "#bb8800", psychic: "#cc0055",
+  ice: "#0088aa", dragon: "#2200cc", dark: "#111111", fairy: "#aa0066", normal: "#556655",
+  fighting: "#aa0000", flying: "#1133aa", poison: "#7700aa", ground: "#885500", rock: "#665500",
+  bug: "#335500", ghost: "#330077", steel: "#334455", unknown: "#333333"
+};
 
-    function titleCase(text) {
-      return String(text)
-        .split("-")
-        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-    }
+const pokeName = document.getElementById("poke-name");
+const numStamp = document.getElementById("num-stamp");
+const numTag2 = document.getElementById("num-tag2");
+const genusTag = document.getElementById("genus-tag");
+const genusTagLeft = document.getElementById("genus-tag-left");
+const desc = document.getElementById("poke-desc");
+const imgEl = document.getElementById("poke-img");
+const typesRow = document.getElementById("types-row");
+const statsList = document.getElementById("stats-list");
+const infoRow = document.getElementById("info-row");
+const statusStrip = document.getElementById("status-strip");
 
-    function padId(id) {
-      return `#${String(id).padStart(4, "0")}`;
-    }
+function padId(id) {
+  return "#" + String(id).padStart(4, "0");
+}
 
-    function wrapText(text, x, y, maxWidth, lineHeight, maxLines, size = 15, color = UI.black) {
-      const words = text.replace(/\s+/g, " ").trim().split(" ");
-      let lineText = "";
-      let lines = [];
-      ctx.font = `700 ${size}px ui-monospace, Menlo, Consolas, monospace`;
+function titleCase(text) {
+  return String(text || "")
+    .split("-")
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
-      for (const word of words) {
-        const testLine = lineText ? `${lineText} ${word}` : word;
-        if (ctx.measureText(testLine).width > maxWidth && lineText) {
-          lines.push(lineText);
-          lineText = word;
-        } else {
-          lineText = testLine;
-        }
-      }
-      if (lineText) lines.push(lineText);
-      lines = lines.slice(0, maxLines);
+function withTimeout(url, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
 
-      if (lines.length === maxLines && words.length > 0) {
-        let last = lines[maxLines - 1];
-        while (ctx.measureText(`${last}...`).width > maxWidth && last.length > 0) {
-          last = last.slice(0, -1);
-        }
-        lines[maxLines - 1] = `${last}...`;
-      }
+async function fetchJson(url, timeoutMs = 7000) {
+  const res = await withTimeout(url, timeoutMs);
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
 
-      lines.forEach((lineText, i) => label(lineText, x, y + i * lineHeight, size, color, "left", 700));
-    }
+function spriteCandidates(id, sprites) {
+  const list = [
+    "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + id + ".png",
+    sprites?.front_default,
+    "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/" + id + ".png",
+    sprites?.other?.["official-artwork"]?.front_default,
+    sprites?.other?.home?.front_default
+  ];
+  return list.filter((url, i, arr) => !!url && arr.indexOf(url) === i);
+}
 
-    function statChip(name, value, x, y, width) {
-      const labelWidth = 30;
-      const valueWidth = 34;
-      const barX = x + labelWidth + 6;
-      const barW = width - labelWidth - valueWidth - 14;
-      const normalized = Math.min(value, 180) / 180;
-      const fillWidth = Math.max(3, Math.round((barW - 2) * normalized));
-      const barColor = value >= 90 ? UI.green : value >= 55 ? UI.blue : UI.red;
+function tryLoadImage(urls, i = 0) {
+  if (i >= urls.length) {
+    statusStrip.textContent = "IMAGE: FALLBACK";
+    return;
+  }
 
-      label(name, x, y + 1, 13, UI.black, "left", 900);
-      rect(barX, y + 3, barW, 11, UI.white, UI.black, 1);
-      ctx.fillStyle = barColor;
-      ctx.fillRect(px(barX + 1), px(y + 4), fillWidth, 9);
-      label(String(value).padStart(3, "0"), x + width, y, 13, UI.black, "right", 900);
-    }
+  imgEl.onload = function() {
+    statusStrip.textContent = "IMAGE: OK";
+  };
 
-    function drawShell() {
-      clear();
+  imgEl.onerror = function() {
+    tryLoadImage(urls, i + 1);
+  };
 
-      rect(0, 0, W, H, UI.red, UI.black, 0);
-      rect(18, 18, 764, 444, UI.white, UI.black, 4);
-      rect(34, 34, 732, 58, UI.red, UI.black, 0);
-      line(34, 92, 766, 92, UI.black, 4);
+  imgEl.src = urls[i];
+}
 
-      circle(70, 63, 24, UI.blue, UI.black, 4);
-      circle(70, 63, 12, UI.white, null, 0);
-      circle(122, 50, 8, UI.red, UI.black, 2);
-      circle(148, 50, 8, UI.green, UI.black, 2);
-      circle(174, 50, 8, UI.blue, UI.black, 2);
+function renderStats(stats) {
+  statsList.innerHTML = stats.map(s => {
+    const p = Math.min(100, Math.round((s.base_stat / 255) * 100));
+    const label = SL[s.stat.name] || s.stat.name.toUpperCase();
+    const color = SC[s.stat.name] || "#000";
+    return "<div class=\"stat-row\">"
+      + "<div class=\"stat-lbl\">" + label + "</div>"
+      + "<div class=\"stat-bar-horiz\"><div class=\"stat-fill-h\" style=\"width:" + p + "%;background:" + color + "\"></div></div>"
+      + "<div class=\"stat-num\">" + s.base_stat + "</div>"
+      + "</div>";
+  }).join("");
+}
 
-      label("POKÉDEX", 238, 51, 26, UI.white, "left", 900);
-      label("SPECIES ARCHIVE", 572, 55, 16, UI.white, "left", 900);
+function renderTypes(types) {
+  typesRow.innerHTML = types.map(t => {
+    const name = t.type.name;
+    const color = TC[name] || "#333";
+    return "<div class=\"tpill\" style=\"background:" + color + "\">" + name + "</div>";
+  }).join("");
+}
 
-      rect(42, 110, 348, 336, UI.black, UI.black, 0);
-      rect(54, 122, 324, 312, UI.white, UI.black, 3);
-      rect(74, 142, 284, 216, UI.paper, UI.black, 3);
-      rect(74, 374, 284, 44, UI.white, UI.black, 3);
-      circle(96, 396, 10, UI.red, UI.black, 2);
+function renderInfo(pokemon, species) {
+  const num = padId(pokemon.id);
+  const genus = (species.genera || []).find(g => g.language.name === "en")?.genus || "Unknown Pokemon";
+  const entries = (species.flavor_text_entries || []).filter(e => e.language.name === "en");
+  const entry = entries[0]?.flavor_text ? entries[0].flavor_text.replace(/[\f\n\r]/g, " ") : "No field notes available.";
 
-      line(402, 102, 402, 448, UI.black, 4);
-      line(396, 138, 408, 138, UI.black, 4);
-      line(396, 418, 408, 418, UI.black, 4);
+  pokeName.textContent = titleCase(pokemon.name);
+  numStamp.textContent = num;
+  numTag2.textContent = num;
+  genusTag.textContent = genus.toUpperCase();
+  genusTagLeft.textContent = genus.toUpperCase();
+  desc.textContent = entry;
 
-      rect(420, 110, 342, 336, UI.paper, UI.black, 4);
-      rect(438, 128, 306, 82, UI.white, UI.black, 3);
-      rect(438, 220, 306, 88, UI.white, UI.black, 3);
-      rect(438, 320, 306, 106, UI.white, UI.black, 3);
-    }
+  renderTypes(pokemon.types || []);
+  renderStats(pokemon.stats || []);
 
-    function drawLoading() {
-      drawShell();
-      label("SEARCHING...", 452, 144, 24, UI.black, "left", 900);
-      wrapText("Fetching Pokémon data and preparing the species file.", 452, 244, 260, 22, 3, 17);
-      label("PLEASE STAND BY", 452, 340, 18, UI.blue, "left", 900);
-    }
+  const ht = (pokemon.height / 10).toFixed(1);
+  const wt = (pokemon.weight / 10).toFixed(1);
+  const gen = (species.generation?.name || "").replace("generation-", "GEN ").toUpperCase() || "GEN ?";
+  const hab = species.habitat?.name ? titleCase(species.habitat.name) : "Unknown";
 
-    function drawError(message) {
-      drawShell();
-      label("SIGNAL LOST", 452, 144, 26, UI.red, "left", 900);
-      wrapText(message || "Could not load Pokémon data. Reload the page to try again.", 452, 244, 260, 22, 3, 17);
-      label("RELOAD PAGE", 452, 340, 18, UI.black, "left", 900);
-      safeApplyAtkinsonDither();
-    }
+  infoRow.innerHTML = ""
+    + "<div class=\"chip\">Height: " + ht + " m</div>"
+    + "<div class=\"chip\">Weight: " + wt + " kg</div>"
+    + "<div class=\"chip\">" + gen + "</div>"
+    + "<div class=\"chip\">Habitat: " + hab + "</div>";
+}
 
-    function imageCandidates(sprites, pokemonId) {
-      const urls = [
-        // Tiny sprite is usually the most reliable on low-power browsers.
-        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
-        sprites?.front_default,
-        sprites?.other?.["official-artwork"]?.front_default,
-        sprites?.other?.home?.front_default
-      ];
+async function main() {
+  try {
+    const id = Math.floor(Math.random() * 1025) + 1;
+    statusStrip.textContent = "NETWORK: FETCHING";
 
-      return urls.filter((url, index, arr) => Boolean(url) && arr.indexOf(url) === index);
-    }
+    // Paint lightweight sprite immediately so users never see a blank panel.
+    tryLoadImage([
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + id + ".png"
+    ]);
 
-    function imageFromUrl(url) {
-      return new Promise((resolve, reject) => {
-        if (!url) return reject(new Error("No sprite available"));
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = url;
-      });
-    }
+    const [pokemon, species] = await Promise.all([
+      fetchJson("https://pokeapi.co/api/v2/pokemon/" + id),
+      fetchJson("https://pokeapi.co/api/v2/pokemon-species/" + id)
+    ]);
 
-    function imageFromUrlWithTimeout(url, timeoutMs = 3000) {
-      return Promise.race([
-        imageFromUrl(url),
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Image load timeout")), timeoutMs);
-        })
-      ]);
-    }
+    renderInfo(pokemon, species);
+    tryLoadImage(spriteCandidates(id, pokemon.sprites));
+    statusStrip.textContent = "DATA: READY";
+  } catch (error) {
+    console.error(error);
+    pokeName.textContent = "SIGNAL LOST";
+    desc.textContent = "Could not load Pokemon data. Check network and reload.";
+    genusTag.textContent = "ERROR";
+    genusTagLeft.textContent = "ERROR";
+    statusStrip.textContent = "NETWORK: ERROR";
+  }
+}
 
-    async function loadFirstAvailableImage(urls, timeoutMs = 3500) {
-      for (const url of urls) {
-        try {
-          return await imageFromUrlWithTimeout(url, timeoutMs);
-        } catch {
-          // Try the next candidate URL.
-        }
-      }
-      return null;
-    }
-
-    function drawPokemonSilhouetteFallback(name) {
-      circle(216, 247, 82, UI.white, UI.black, 4);
-      circle(186, 222, 15, UI.black, null, 0);
-      circle(248, 222, 15, UI.black, null, 0);
-      rect(174, 278, 88, 14, UI.black, null, 0);
-      fitText(titleCase(name), 216, 391, 172, 17, UI.black, "center", 900);
-    }
-
-    function drawPokemonImage(img, speciesName) {
-      rect(74, 142, 284, 216, UI.paper, UI.black, 3);
-      const maxW = 230;
-      const maxH = 194;
-      const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
-      const drawW = Math.round(img.naturalWidth * scale);
-      const drawH = Math.round(img.naturalHeight * scale);
-      const x = Math.round(74 + (284 - drawW) / 2);
-      const y = Math.round(144 + (216 - drawH) / 2);
-      ctx.drawImage(img, x, y, drawW, drawH);
-      fitText(titleCase(speciesName), 216, 391, 172, 17, UI.black, "center", 900);
-    }
-
-    function drawTypes(types) {
-      let x = 452;
-      types.slice(0, 2).forEach(typeInfo => {
-        const type = typeInfo.type.name;
-        const text = type.toUpperCase();
-        const w = Math.min(126, Math.max(86, text.length * 12 + 20));
-        rect(x, 176, w, 26, typeColors[type] || UI.black, UI.black, 2);
-        label(text, x + w / 2, 182, 13, UI.white, "center", 900);
-        x += w + 10;
-      });
-    }
-
-    function drawStats(stats) {
-      const statMap = stats.reduce((map, entry) => {
-        map[entry.stat.name] = entry.base_stat;
-        return map;
-      }, {});
-
-      label("BASE STATS", 452, 332, 15, UI.red, "left", 900);
-      statChip("HP", statMap.hp || 0, 452, 356, 126);
-      statChip("ATK", statMap.attack || 0, 452, 378, 126);
-      statChip("DEF", statMap.defense || 0, 452, 400, 126);
-      statChip("SAT", statMap["special-attack"] || 0, 598, 356, 126);
-      statChip("SDF", statMap["special-defense"] || 0, 598, 378, 126);
-      statChip("SPD", statMap.speed || 0, 598, 400, 126);
-    }
-
-    function drawInfo(pokemon, species, img) {
-      drawShell();
-
-      if (img) {
-        try {
-          drawPokemonImage(img, pokemon.name);
-        } catch {
-          drawPokemonSilhouetteFallback(pokemon.name);
-        }
-      } else {
-        drawPokemonSilhouetteFallback(pokemon.name);
-      }
-
-      const name = titleCase(pokemon.name);
-      fitText(name, 452, 140, 188, 28, UI.black, "left", 900);
-      label(padId(pokemon.id), 724, 144, 19, UI.red, "right", 900);
-      drawTypes(pokemon.types);
-
-      const heightM = (pokemon.height / 10).toFixed(1);
-      const weightKg = (pokemon.weight / 10).toFixed(1);
-      label("HEIGHT", 452, 238, 14, UI.black, "left", 900);
-      label(`${heightM} m`, 548, 238, 15, UI.blue, "left", 900);
-      label("WEIGHT", 452, 260, 14, UI.black, "left", 900);
-      label(`${weightKg} kg`, 548, 260, 15, UI.blue, "left", 900);
-
-      const genus = species?.genera?.find(g => g.language.name === "en")?.genus || "Unknown Pokémon";
-      fitText(genus, 452, 282, 260, 14, UI.black, "left", 900);
-
-      const flavor = species?.flavor_text_entries
-        ?.find(entry => entry.language.name === "en")
-        ?.flavor_text
-        ?.replace(/[\n\f]/g, " ") ||
-        "No field notes available for this Pokémon.";
-      wrapText(flavor, 452, 444, 280, 18, 0, 14);
-
-      rect(438, 320, 306, 106, UI.white, UI.black, 3);
-      drawStats(pokemon.stats);
-
-      const flavorBoxY = 220;
-      rect(438, flavorBoxY, 306, 88, UI.white, UI.black, 3);
-      label("PROFILE", 452, flavorBoxY + 12, 14, UI.red, "left", 900);
-      wrapText(flavor, 452, flavorBoxY + 34, 276, 16, 3, 12);
-
-      applyAtkinsonDither();
-    }
-
-    function nearestPaletteColor(r, g, b) {
-      let best = PALETTE[0];
-      let bestDistance = Infinity;
-      for (const color of PALETTE) {
-        const dr = r - color[0];
-        const dg = g - color[1];
-        const db = b - color[2];
-        const distance = dr * dr + dg * dg + db * db;
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = color;
-        }
-      }
-      return best;
-    }
-
-    function applyAtkinsonDither() {
-      const imageData = ctx.getImageData(0, 0, W, H);
-      const data = imageData.data;
-      const buffer = new Float32Array(data.length);
-
-      for (let i = 0; i < data.length; i++) buffer[i] = data[i];
-
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          const oldR = buffer[i];
-          const oldG = buffer[i + 1];
-          const oldB = buffer[i + 2];
-          const next = nearestPaletteColor(oldR, oldG, oldB);
-          const errR = (oldR - next[0]) / 8;
-          const errG = (oldG - next[1]) / 8;
-          const errB = (oldB - next[2]) / 8;
-
-          buffer[i] = next[0];
-          buffer[i + 1] = next[1];
-          buffer[i + 2] = next[2];
-
-          const offsets = [[1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]];
-          for (const [dx, dy] of offsets) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
-              const ni = (ny * W + nx) * 4;
-              buffer[ni] += errR;
-              buffer[ni + 1] += errG;
-              buffer[ni + 2] += errB;
-            }
-          }
-        }
-      }
-
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.max(0, Math.min(255, Math.round(buffer[i])));
-        data[i + 1] = Math.max(0, Math.min(255, Math.round(buffer[i + 1])));
-        data[i + 2] = Math.max(0, Math.min(255, Math.round(buffer[i + 2])));
-        data[i + 3] = 255;
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-    }
-
-    function safeApplyAtkinsonDither() {
-      try {
-        applyAtkinsonDither();
-      } catch (error) {
-        console.warn("Dither skipped:", error);
-      }
-    }
-
-    async function fetchJson(url) {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    }
-
-    async function main() {
-      drawLoading();
-      try {
-        const pokemonId = Math.floor(Math.random() * 1025) + 1;
-        const pokemon = await fetchJson(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
-        const species = await fetchJson(pokemon.species.url);
-
-        // Render text and stats immediately; artwork can load in the background.
-        drawInfo(pokemon, species, null);
-
-        const img = await loadFirstAvailableImage(imageCandidates(pokemon.sprites, pokemon.id), 3500);
-        if (img) drawInfo(pokemon, species, img);
-      } catch (error) {
-        console.error(error);
-        drawError("Could not load Pokémon data from PokeAPI. Check network access, then reload.");
-      }
-    }
-
-    main();
-  </script>
+main();
+</script>
 </body>
 </html>
