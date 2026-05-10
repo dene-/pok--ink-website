@@ -258,7 +258,6 @@
       label("SEARCHING...", 452, 144, 24, UI.black, "left", 900);
       wrapText("Fetching Pokémon data and preparing the species file.", 452, 244, 260, 22, 3, 17);
       label("PLEASE STAND BY", 452, 340, 18, UI.blue, "left", 900);
-      applyAtkinsonDither();
     }
 
     function drawError(message) {
@@ -266,7 +265,7 @@
       label("SIGNAL LOST", 452, 144, 26, UI.red, "left", 900);
       wrapText(message || "Could not load Pokémon data. Reload the page to try again.", 452, 244, 260, 22, 3, 17);
       label("RELOAD PAGE", 452, 340, 18, UI.black, "left", 900);
-      applyAtkinsonDither();
+      safeApplyAtkinsonDither();
     }
 
     function bestImage(sprites) {
@@ -285,6 +284,15 @@
         img.onerror = reject;
         img.src = url;
       });
+    }
+
+    function imageFromUrlWithTimeout(url, timeoutMs = 3000) {
+      return Promise.race([
+        imageFromUrl(url),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Image load timeout")), timeoutMs);
+        })
+      ]);
     }
 
     function drawPokemonSilhouetteFallback(name) {
@@ -443,6 +451,14 @@
       ctx.putImageData(imageData, 0, 0);
     }
 
+    function safeApplyAtkinsonDither() {
+      try {
+        applyAtkinsonDither();
+      } catch (error) {
+        console.warn("Dither skipped:", error);
+      }
+    }
+
     async function fetchJson(url) {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -455,15 +471,16 @@
         const pokemonId = Math.floor(Math.random() * 1025) + 1;
         const pokemon = await fetchJson(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
         const species = await fetchJson(pokemon.species.url);
-        let img = null;
+
+        // Render text and stats immediately; artwork can load in the background.
+        drawInfo(pokemon, species, null);
 
         try {
-          img = await imageFromUrl(bestImage(pokemon.sprites));
+          const img = await imageFromUrlWithTimeout(bestImage(pokemon.sprites), 3000);
+          drawInfo(pokemon, species, img);
         } catch {
-          img = null;
+          // Keep the already-rendered fallback silhouette.
         }
-
-        drawInfo(pokemon, species, img);
       } catch (error) {
         console.error(error);
         drawError("Could not load Pokémon data from PokeAPI. Check network access, then reload.");
