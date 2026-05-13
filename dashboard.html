@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=800,height=480,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="referrer" content="no-referrer" />
+    <title>E1002 weather dashboard</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;500;700&display=swap");
+
+      /*
+        Optional self-hosted font setup:
+        Put a WOFF2 monospace font in ./fonts/ and uncomment this block.
+
+        @font-face {
+          font-family: "DashMono";
+          src: url("./fonts/DashMono-Regular.woff2") format("woff2");
+          font-weight: 400 700;
+          font-style: normal;
+          font-display: swap;
+        }
+      */
+
+      :root {
+        --ink: #000;
+        --paper: #fff;
+        --font: "Space Mono", "Courier New", monospace;
+        /* Use "DashMono", "Roboto Mono", "Courier New", monospace if using the @font-face block above. */
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 800px;
+        height: 480px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      body {
+        color: var(--ink);
+        font-family: var(--font);
+        font-variant-numeric: tabular-nums;
+        font-feature-settings: "tnum" 1, "zero" 1;
+        text-rendering: geometricPrecision;
+        -webkit-font-smoothing: none;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        border-radius: 0 !important;
+      }
+
+      /*
+        Pixel map:
+        outer border: 1 px via #screen padding
+        main separator: 1 px via #screen gap
+        left content: 639 px, right content: 158 px
+        all internal separators: 1 px CSS-grid gaps over a black background
+      */
+      #screen {
+        width: 800px;
+        height: 480px;
+        display: grid;
+        grid-template-columns: 639px 158px;
+        grid-template-rows: 478px;
+        gap: 1px;
+        padding: 1px;
+        overflow: hidden;
+        background: var(--ink);
+      }
+
+      .leftColumn,
+      .rightColumn,
+      .dateRow,
+      .forecastGrid {
+        min-width: 0;
+        min-height: 0;
+        background: var(--ink);
+      }
+
+      .leftColumn {
+        display: grid;
+        grid-template-rows: 279px 39px 158px;
+        gap: 1px;
+      }
+
+      .rightColumn {
+        display: grid;
+        grid-template-rows: 131px 83px 63px 105px 49px 42px;
+        gap: 1px;
+      }
+
+      .panel,
+      .dateCell,
+      .forecastDay {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      .photoPanel iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: var(--paper);
+      }
+
+      .dateRow {
+        display: grid;
+        grid-template-columns: 319px 319px;
+        gap: 1px;
+      }
+
+      .dateCell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        font-size: 25px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        white-space: nowrap;
+      }
+
+      .forecastGrid {
+        display: grid;
+        grid-template-columns: repeat(5, 127px);
+        gap: 1px;
+      }
+
+      .forecastDay {
+        display: grid;
+        grid-template-rows: 30px 50px minmax(24px, 1fr) 22px 22px;
+        align-items: center;
+        justify-items: center;
+        padding: 3px 8px 5px;
+      }
+
+      .forecastDate {
+        font-size: 21px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        white-space: nowrap;
+      }
+
+      .weatherIcon,
+      .windIcon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink);
+        overflow: hidden;
+      }
+
+      .forecastIcon {
+        width: 46px;
+        height: 46px;
+      }
+
+      .currentIcon {
+        width: 44px;
+        height: 44px;
+      }
+
+      .windIcon {
+        width: 38px;
+        height: 36px;
+        justify-self: center;
+      }
+
+      .weatherIcon svg,
+      .windIcon svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        overflow: visible;
+      }
+
+      .weatherIcon svg *,
+      .windIcon svg * {
+        vector-effect: non-scaling-stroke;
+      }
+
+      .forecastDesc {
+        width: 100%;
+        font-size: 12.5px;
+        font-weight: 700;
+        line-height: 13.5px;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+
+      .forecastTemp {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        align-items: baseline;
+        column-gap: 4px;
+        font-size: 13.5px;
+        font-weight: 400;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .forecastTemp b {
+        text-align: right;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .currentPanel {
+        display: grid;
+        grid-template-rows: 74px 1fr;
+        padding: 8px 8px 7px;
+      }
+
+      .currentTempRow {
+        display: grid;
+        grid-template-columns: 1fr 10px;
+        align-items: start;
+        min-width: 0;
+      }
+
+      #currentTemp {
+        align-self: end;
+        justify-self: center;
+        font-size: 62px;
+        font-weight: 700;
+        line-height: 0.92;
+        letter-spacing: -0.08em;
+        white-space: nowrap;
+      }
+
+      #currentUnit {
+        justify-self: end;
+        font-size: 19px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .currentConditionRow {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        align-items: center;
+        column-gap: 4px;
+        min-width: 0;
+      }
+
+      #currentDesc {
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 14px;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+
+      .todayRangePanel {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        row-gap: 3px;
+        padding: 9px 8px 8px;
+      }
+
+      .rangeRow {
+        display: grid;
+        grid-template-columns: 40px 1fr 28px;
+        align-items: baseline;
+        column-gap: 2px;
+        min-width: 0;
+        white-space: nowrap;
+      }
+
+      .rangeLabel {
+        font-size: 15px;
+        font-weight: 400;
+        line-height: 1;
+      }
+
+      .rangeValue {
+        justify-self: end;
+        font-size: 27px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.06em;
+      }
+
+      .rangeUnit {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .sensorPanel {
+        display: grid;
+        grid-template-rows: repeat(3, 1fr);
+        align-items: center;
+        padding: 6px 7px;
+      }
+
+      .statusRow {
+        display: grid;
+        grid-template-columns: 1fr 1fr 18px;
+        align-items: baseline;
+        column-gap: 2px;
+        min-width: 0;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .statusRow .num {
+        justify-self: end;
+        font-size: 13px;
+      }
+
+      .statusRow span:nth-child(3) {
+        justify-self: end;
+      }
+
+      .statusRow span:nth-child(1) {
+        justify-self: start;
+      }
+
+      .windCurrentPanel {
+        display: grid;
+        grid-template-rows: 38px 46px 17px;
+        align-items: center;
+        justify-items: center;
+        padding: 3px 8px 4px;
+      }
+
+      #windSpeed {
+        font-size: 52px;
+        font-weight: 700;
+        line-height: 0.92;
+        letter-spacing: -0.08em;
+        white-space: nowrap;
+      }
+
+      .windUnit {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .windMaxPanel {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        align-items: center;
+        column-gap: 4px;
+        padding: 5px 13px;
+      }
+
+      .windMaxLabel {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      #windMax {
+        justify-self: end;
+        font-size: 34px;
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.07em;
+        white-space: nowrap;
+      }
+
+      .windDirectionPanel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 8px;
+        text-align: center;
+      }
+
+      #windDirection {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 18px;
+        overflow-wrap: anywhere;
+      }
+
+      #errorText {
+        position: fixed;
+        left: 6px;
+        top: 3px;
+        z-index: 10;
+        max-width: 632px;
+        padding: 1px 3px;
+        display: none;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="screen" aria-label="E1002 weather dashboard">
+      <div id="errorText"></div>
+
+      <main class="leftColumn" aria-label="Photo and forecast">
+        <section class="panel photoPanel" aria-label="Photo">
+          <iframe
+            id="photoFrame"
+            title="Photo iframe"
+            referrerpolicy="no-referrer"
+          ></iframe>
+        </section>
+
+        <section class="dateRow" aria-label="Date">
+          <div id="todayDate" class="dateCell">--/--/----</div>
+          <div id="weekday" class="dateCell">---------</div>
+        </section>
+
+        <section class="forecastGrid" aria-label="Five day forecast">
+          <article id="forecast0" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast1" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast2" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast3" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast4" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+        </section>
+      </main>
+
+      <aside class="rightColumn" aria-label="Current weather and sensors">
+        <section class="panel currentPanel" aria-label="Current temperature">
+          <div class="currentTempRow">
+            <div id="currentTemp">--.-</div>
+            <div id="currentUnit">°C</div>
+          </div>
+          <div class="currentConditionRow">
+            <div id="currentIcon" class="currentIcon weatherIcon"></div>
+            <div id="currentDesc">--</div>
+          </div>
+        </section>
+
+        <section
+          class="panel todayRangePanel"
+          aria-label="Today temperature range"
+        >
+          <div class="rangeRow">
+            <span class="rangeLabel">Max</span
+            ><span id="todayMax" class="rangeValue">--.-</span
+            ><span class="rangeUnit">°C</span>
+          </div>
+          <div class="rangeRow">
+            <span class="rangeLabel">Min</span
+            ><span id="todayMin" class="rangeValue">--.-</span
+            ><span class="rangeUnit">°C</span>
+          </div>
+        </section>
+
+        <section class="panel sensorPanel" aria-label="Device sensors">
+          <div class="statusRow">
+            <span>Battery:</span><span id="battery" class="num">--</span
+            ><span>%</span>
+          </div>
+          <div class="statusRow">
+            <span>In Temp:</span><span id="insideTemp" class="num">--.-</span
+            ><span>°C</span>
+          </div>
+          <div class="statusRow">
+            <span>Humidity:</span
+            ><span id="insideHumidity" class="num">--.-</span><span>%</span>
+          </div>
+        </section>
+
+        <section class="panel windCurrentPanel" aria-label="Current wind">
+          <div id="windIcon" class="windIcon"></div>
+          <div id="windSpeed">--.-</div>
+          <div class="windUnit">km/h</div>
+        </section>
+
+        <section class="panel windMaxPanel" aria-label="Maximum wind">
+          <div class="windMaxLabel">Max</div>
+          <div id="windMax">--.-</div>
+        </section>
+
+        <section class="panel windDirectionPanel" aria-label="Wind direction">
+          <div id="windDirection">-- Wind</div>
+        </section>
+      </aside>
+    </div>
+
+    <script>
+      'use strict';
+
+      const CONFIG = {
+        photoIframeUrl: 'https://dene-.github.io/pok--ink-website/',
+        latitude: 41.3474,
+        longitude: 2.0431,
+        timezone: 'Europe/Madrid',
+        locale: 'en-US',
+        refreshMinutes: 30,
+
+        // The weather API below is Open-Meteo and does not need a key.
+        weatherUrl: 'https://api.open-meteo.com/v1/forecast',
+
+        // Enabled by default. The request is only made when the iframe URL includes
+        // ?apikey=YOUR_KEY, #apikey=YOUR_KEY, or one of the accepted aliases below.
+        device: {
+          enabled: true,
+          url: 'https://sensecraft-hmi-api.seeed.cc/api/v1/user/device/iot_data/20227712',
+          apiKey: '',
+          fallback: {
+            battery: '--',
+            insideTemp: '--.-',
+            insideHumidity: '--.-'
+          }
+        }
+      };
+
+      function queryParamsFromSearchAndHash() {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash ? window.location.hash.replace(/^#/, '') : '';
+        const hashParams = new URLSearchParams(hash);
+        for (const [key, value] of hashParams.entries()) {
+          if (!params.has(key)) params.set(key, value);
+        }
+        return params;
+      }
+
+      function firstParam(params, names) {
+        for (const name of names) {
+          const value = params.get(name);
+          if (value !== null && String(value).trim() !== '') return String(value).trim();
+        }
+        return '';
+      }
+
+      function applyUrlConfig() {
+        const params = queryParamsFromSearchAndHash();
+
+        const apiKey = firstParam(params, ['apikey', 'apiKey', 'api_key', 'sensecraftApiKey', 'sensecraft_key', 'key']);
+        if (apiKey) {
+          // URLSearchParams decodes + as a space. Most pasted API keys should be URL-encoded,
+          // but this restores raw plus signs for keys pasted without encoding.
+          CONFIG.device.apiKey = apiKey.replace(/ /g, '+');
+        }
+
+        const deviceUrl = firstParam(params, ['deviceUrl', 'device_url']);
+        if (deviceUrl) CONFIG.device.url = deviceUrl;
+
+        const photoUrl = firstParam(params, ['photoUrl', 'photo', 'photoIframeUrl']);
+        if (photoUrl) CONFIG.photoIframeUrl = photoUrl;
+
+        const latitude = Number(firstParam(params, ['lat', 'latitude']));
+        const longitude = Number(firstParam(params, ['lon', 'lng', 'longitude']));
+        if (Number.isFinite(latitude)) CONFIG.latitude = latitude;
+        if (Number.isFinite(longitude)) CONFIG.longitude = longitude;
+
+        const timezone = firstParam(params, ['timezone', 'tz']);
+        if (timezone) CONFIG.timezone = timezone;
+
+        const sensors = firstParam(params, ['sensors', 'deviceSensors']);
+        if (['0', 'false', 'off', 'no'].includes(sensors.toLowerCase())) CONFIG.device.enabled = false;
+      }
+
+      const $ = (id) => document.getElementById(id);
+
+      function setText(id, value) {
+        const el = $(id);
+        if (el) el.textContent = value;
+      }
+
+      function setHTML(id, html) {
+        const el = $(id);
+        if (el) el.innerHTML = html;
+      }
+
+      function fixed(value, decimals = 1) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n.toFixed(decimals) : decimals ? '--.-' : '--';
+      }
+
+      function datePartsFromISODate(isoDate) {
+        const [year, month, day] = String(isoDate || '').slice(0, 10).split('-');
+        return { year, month, day };
+      }
+
+      function formatDateDMY(isoDate) {
+        const { year, month, day } = datePartsFromISODate(isoDate);
+        return year && month && day ? `${day}/${month}/${year}` : '--/--/----';
+      }
+
+      function formatDateDM(isoDate) {
+        const { month, day } = datePartsFromISODate(isoDate);
+        return month && day ? `${day}/${month}` : '--/--';
+      }
+
+      function formatWeekday(isoDate) {
+        const { year, month, day } = datePartsFromISODate(isoDate);
+        if (!year || !month || !day) return '---------';
+        const d = new Date(`${year}-${month}-${day}T12:00:00`);
+        return new Intl.DateTimeFormat(CONFIG.locale, { weekday: 'long', timeZone: CONFIG.timezone }).format(d);
+      }
+
+      function weatherDescription(code) {
+        const map = {
+          0: 'Clear',
+          1: 'Mainly clear',
+          2: 'Partly cloudy',
+          3: 'Cloudy',
+          45: 'Fog',
+          48: 'Rime fog',
+          51: 'Drizzle',
+          53: 'Drizzle',
+          55: 'Drizzle',
+          56: 'Freezing drizzle',
+          57: 'Freezing drizzle',
+          61: 'Rain',
+          63: 'Rain',
+          65: 'Heavy rain',
+          66: 'Freezing rain',
+          67: 'Freezing rain',
+          71: 'Snow',
+          73: 'Snow',
+          75: 'Heavy snow',
+          77: 'Snow grains',
+          80: 'Rain showers',
+          81: 'Rain showers',
+          82: 'Heavy showers',
+          85: 'Snow showers',
+          86: 'Snow showers',
+          95: 'Thunderstorm',
+          96: 'Thunderstorm',
+          99: 'Thunderstorm'
+        };
+        return map[Number(code)] || 'Unknown';
+      }
+
+      function weatherIconType(code) {
+        const c = Number(code);
+        if (c === 0 || c === 1) return 'sun';
+        if (c === 2 || c === 3) return 'cloud';
+        if (c === 45 || c === 48) return 'fog';
+        if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(c)) return 'rain';
+        if ([71, 73, 75, 77, 85, 86].includes(c)) return 'snow';
+        if ([95, 96, 99].includes(c)) return 'storm';
+        return 'cloud';
+      }
+
+      function iconSvg(type) {
+        const common = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
+        if (type === 'sun') {
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" ${common} stroke-width="5"/><path d="M32 5v10M32 49v10M5 32h10M49 32h10M13 13l7 7M44 44l7 7M51 13l-7 7M20 44l-7 7" ${common} stroke-width="5"/></svg>`;
+        }
+        if (type === 'rain') {
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 44H48a12 12 0 0 0 0-24h-3A17 17 0 0 0 15 27a10 10 0 0 0 5 17Z" ${common} stroke-width="5"/><path d="M24 51l-4 8M38 51l-4 8M52 51l-4 8" ${common} stroke-width="5"/></svg>`;
+        }
+        if (type === 'storm') {
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 39H48a11 11 0 0 0 0-22h-3A16 16 0 0 0 15 24a9 9 0 0 0 5 15Z" ${common} stroke-width="5"/><path d="M32 36l-7 13h8l-4 11l13-18h-8l4-6Z" fill="currentColor"/></svg>`;
+        }
+        if (type === 'snow') {
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 39H48a11 11 0 0 0 0-22h-3A16 16 0 0 0 15 24a9 9 0 0 0 5 15Z" ${common} stroke-width="5"/><path d="M24 50l8 8M32 50l-8 8M44 50l8 8M52 50l-8 8" ${common} stroke-width="4"/></svg>`;
+        }
+        if (type === 'fog') {
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 35H48a10 10 0 0 0 0-20h-3A16 16 0 0 0 16 22a9 9 0 0 0 4 13Z" ${common} stroke-width="5"/><path d="M14 46h36M20 55h36" ${common} stroke-width="5"/></svg>`;
+        }
+        return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 44H48a12 12 0 0 0 0-24h-3A17 17 0 0 0 14 27a10 10 0 0 0 4 17Z" ${common} stroke-width="5"/></svg>`;
+      }
+
+      function windSvg() {
+        const common = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
+        return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M7 24h35a9 9 0 1 0-8-13" ${common} stroke-width="5"/><path d="M7 36h45a8 8 0 1 1-7 12" ${common} stroke-width="5"/><path d="M7 48h25" ${common} stroke-width="5"/></svg>`;
+      }
+
+      function windDirection(deg) {
+        const n = Number(deg);
+        if (!Number.isFinite(n)) return '-- Wind';
+        const names = ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'];
+        const idx = Math.round((((n % 360) + 360) % 360) / 45) % 8;
+        return `${names[idx]} Wind`;
+      }
+
+      function nestedValue(obj, path) {
+        return String(path).split('.').reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);
+      }
+
+      function applyDeviceFallback() {
+        setText('battery', CONFIG.device.fallback.battery);
+        setText('insideTemp', CONFIG.device.fallback.insideTemp);
+        setText('insideHumidity', CONFIG.device.fallback.insideHumidity);
+      }
+
+      async function updateDevice() {
+        applyDeviceFallback();
+        if (!CONFIG.device.enabled || !CONFIG.device.apiKey) return;
+        try {
+          const response = await fetch(CONFIG.device.url, { headers: { 'api-key': CONFIG.device.apiKey } });
+          if (!response.ok) throw new Error(`Device HTTP ${response.status}`);
+          const data = await response.json();
+          const battery = nestedValue(data, 'result.battery.level');
+          const insideTemp = nestedValue(data, 'result.sensor.temp');
+          const insideHumidity = nestedValue(data, 'result.sensor.humidity');
+          setText('battery', fixed(battery, 0));
+          setText('insideTemp', fixed(insideTemp, 1));
+          setText('insideHumidity', fixed(insideHumidity, 1));
+        } catch (error) {
+          showError(`Device: ${error.message}`);
+        }
+      }
+
+      function showError(text) {
+        const el = $('errorText');
+        if (!el) return;
+        el.textContent = text;
+        el.style.display = 'block';
+      }
+
+      function clearError() {
+        const el = $('errorText');
+        if (!el) return;
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+
+      function buildWeatherUrl() {
+        const params = new URLSearchParams({
+          latitude: String(CONFIG.latitude),
+          longitude: String(CONFIG.longitude),
+          timezone: CONFIG.timezone,
+          forecast_days: '5',
+          timeformat: 'iso8601',
+          temperature_unit: 'celsius',
+          wind_speed_unit: 'kmh',
+          current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+          daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
+        });
+        return `${CONFIG.weatherUrl}?${params.toString()}`;
+      }
+
+      function updateForecastDay(index, data) {
+        const root = $(`forecast${index}`);
+        if (!root) return;
+        const code = data.daily.weather_code[index];
+        root.querySelector('.forecastDate').textContent = formatDateDM(data.daily.time[index]);
+        root.querySelector('.forecastIcon').innerHTML = iconSvg(weatherIconType(code));
+        root.querySelector('.forecastDesc').textContent = weatherDescription(code);
+        root.querySelector('.forecastTemp.max b').textContent = fixed(data.daily.temperature_2m_max[index], 1);
+        root.querySelector('.forecastTemp.min b').textContent = fixed(data.daily.temperature_2m_min[index], 1);
+      }
+
+      async function updateWeather() {
+        try {
+          clearError();
+          const response = await fetch(buildWeatherUrl(), { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
+          const data = await response.json();
+
+          const todayISO = data.daily && data.daily.time && data.daily.time[0];
+          setText('todayDate', formatDateDMY(todayISO));
+          setText('weekday', formatWeekday(todayISO));
+
+          setText('currentTemp', fixed(data.current.temperature_2m, 1));
+          setText('currentDesc', weatherDescription(data.current.weather_code));
+          setHTML('currentIcon', iconSvg(weatherIconType(data.current.weather_code)));
+
+          setText('todayMax', fixed(data.daily.temperature_2m_max[0], 1));
+          setText('todayMin', fixed(data.daily.temperature_2m_min[0], 1));
+
+          for (let i = 0; i < 5; i += 1) updateForecastDay(i, data);
+
+          setText('windSpeed', fixed(data.current.wind_speed_10m, 1));
+          setText('windMax', fixed(data.daily.wind_speed_10m_max[0], 1));
+          setText('windDirection', windDirection(data.current.wind_direction_10m));
+        } catch (error) {
+          showError(`Weather: ${error.message}`);
+        }
+      }
+
+      function init() {
+        applyUrlConfig();
+        $('photoFrame').src = CONFIG.photoIframeUrl;
+        setHTML('windIcon', windSvg());
+        applyDeviceFallback();
+        updateWeather();
+        updateDevice();
+        const refreshMs = Math.max(1, Number(CONFIG.refreshMinutes) || 30) * 60 * 1000;
+        window.setInterval(updateWeather, refreshMs);
+        window.setInterval(updateDevice, refreshMs);
+      }
+
+      init();
+    </script>
+  </body>
+</html>
