@@ -533,7 +533,7 @@
       </aside>
     </div>
 
-    <script>
+    <script type="module">
       'use strict';
 
       const CONFIG = {
@@ -543,9 +543,18 @@
         timezone: 'Europe/Madrid',
         locale: 'en-US',
         refreshMinutes: 30,
+        debug: false,
 
         // The weather API below is Open-Meteo and does not need a key.
         weatherUrl: 'https://api.open-meteo.com/v1/forecast',
+        weatherFetch: {
+          initialAttempts: 4,
+          refreshAttempts: 2,
+          timeoutMs: 5000,
+          retryDelayMs: 500,
+          cachePrefix: 'e1002.openmeteo.weather.v3',
+          cacheMaxAgeHours: 26
+        },
 
         // Enabled by default. The request is only made when the iframe URL includes
         // ?apikey=YOUR_KEY, #apikey=YOUR_KEY, or one of the accepted aliases below.
@@ -553,6 +562,12 @@
           enabled: true,
           url: 'https://sensecraft-hmi-api.seeed.cc/api/v1/user/device/iot_data/20227712',
           apiKey: '',
+          fetch: {
+            initialAttempts: 2,
+            refreshAttempts: 1,
+            timeoutMs: 5000,
+            retryDelayMs: 400
+          },
           fallback: {
             battery: '--',
             insideTemp: '--.-',
@@ -560,6 +575,8 @@
           }
         }
       };
+
+      let weatherHasData = false;
 
       function queryParamsFromSearchAndHash() {
         const params = new URLSearchParams(window.location.search);
@@ -605,6 +622,9 @@
 
         const sensors = firstParam(params, ['sensors', 'deviceSensors']);
         if (['0', 'false', 'off', 'no'].includes(sensors.toLowerCase())) CONFIG.device.enabled = false;
+
+        const debug = firstParam(params, ['debug']);
+        if (['1', 'true', 'on', 'yes'].includes(debug.toLowerCase())) CONFIG.debug = true;
       }
 
       const $ = (id) => document.getElementById(id);
@@ -637,6 +657,19 @@
       function formatDateDM(isoDate) {
         const { month, day } = datePartsFromISODate(isoDate);
         return month && day ? `${day}/${month}` : '--/--';
+      }
+
+      function todayISOInTimezone() {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+          timeZone: CONFIG.timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).formatToParts(new Date()).reduce((acc, part) => {
+          acc[part.type] = part.value;
+          return acc;
+        }, {});
+        return `${parts.year}-${parts.month}-${parts.day}`;
       }
 
       function formatWeekday(isoDate) {
@@ -734,25 +767,8 @@
         setText('insideHumidity', CONFIG.device.fallback.insideHumidity);
       }
 
-      async function updateDevice() {
-        applyDeviceFallback();
-        if (!CONFIG.device.enabled || !CONFIG.device.apiKey) return;
-        try {
-          const response = await fetch(CONFIG.device.url, { headers: { 'api-key': CONFIG.device.apiKey } });
-          if (!response.ok) throw new Error(`Device HTTP ${response.status}`);
-          const data = await response.json();
-          const battery = nestedValue(data, 'result.battery.level');
-          const insideTemp = nestedValue(data, 'result.sensor.temp');
-          const insideHumidity = nestedValue(data, 'result.sensor.humidity');
-          setText('battery', fixed(battery, 0));
-          setText('insideTemp', fixed(insideTemp, 1));
-          setText('insideHumidity', fixed(insideHumidity, 1));
-        } catch (error) {
-          showError(`Device: ${error.message}`);
-        }
-      }
-
       function showError(text) {
+        if (!CONFIG.debug) return;
         const el = $('errorText');
         if (!el) return;
         el.textContent = text;
@@ -766,6 +782,40 @@
         el.style.display = 'none';
       }
 
+      function sleep(ms) {
+        return new Promise((resolve) => window.setTimeout(resolve, ms));
+      }
+
+      async function fetchJsonWithRetry(urlOrBuilder, options = {}) {
+        const attempts = Math.max(1, Number(options.attempts) || 1);
+        const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 5000);
+        const retryDelayMs = Math.max(0, Number(options.retryDelayMs) || 0);
+        let lastError = null;
+
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          const controller = new AbortController();
+          const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const url = typeof urlOrBuilder === 'function' ? urlOrBuilder() : urlOrBuilder;
+            const response = await fetch(url, {
+              cache: 'no-store',
+              signal: controller.signal,
+              headers: options.headers || undefined
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+          } catch (error) {
+            lastError = error;
+          } finally {
+            window.clearTimeout(timer);
+          }
+
+          if (attempt < attempts && retryDelayMs) await sleep(retryDelayMs * attempt);
+        }
+
+        throw lastError || new Error('request failed');
+      }
+
       function buildWeatherUrl() {
         const params = new URLSearchParams({
           latitude: String(CONFIG.latitude),
@@ -776,63 +826,164 @@
           temperature_unit: 'celsius',
           wind_speed_unit: 'kmh',
           current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
-          daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
+          daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max',
+          _: String(Date.now())
         });
         return `${CONFIG.weatherUrl}?${params.toString()}`;
+      }
+
+      function validateWeatherData(data) {
+        if (!data || typeof data !== 'object') throw new Error('empty weather payload');
+        if (!data.current || typeof data.current !== 'object') throw new Error('missing current weather');
+        if (!data.daily || typeof data.daily !== 'object') throw new Error('missing daily weather');
+        if (!Array.isArray(data.daily.time) || data.daily.time.length < 5) throw new Error('missing forecast dates');
       }
 
       function updateForecastDay(index, data) {
         const root = $(`forecast${index}`);
         if (!root) return;
-        const code = data.daily.weather_code[index];
-        root.querySelector('.forecastDate').textContent = formatDateDM(data.daily.time[index]);
+        const daily = data.daily || {};
+        const code = Array.isArray(daily.weather_code) ? daily.weather_code[index] : undefined;
+        root.querySelector('.forecastDate').textContent = formatDateDM(Array.isArray(daily.time) ? daily.time[index] : '');
         root.querySelector('.forecastIcon').innerHTML = iconSvg(weatherIconType(code));
         root.querySelector('.forecastDesc').textContent = weatherDescription(code);
-        root.querySelector('.forecastTemp.max b').textContent = fixed(data.daily.temperature_2m_max[index], 1);
-        root.querySelector('.forecastTemp.min b').textContent = fixed(data.daily.temperature_2m_min[index], 1);
+        root.querySelector('.forecastTemp.max b').textContent = fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[index] : undefined, 1);
+        root.querySelector('.forecastTemp.min b').textContent = fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[index] : undefined, 1);
       }
 
-      async function updateWeather() {
+      function applyWeatherData(data) {
+        validateWeatherData(data);
+
+        const current = data.current || {};
+        const daily = data.daily || {};
+        const todayISO = Array.isArray(daily.time) ? daily.time[0] : '';
+
+        setText('todayDate', formatDateDMY(todayISO));
+        setText('weekday', formatWeekday(todayISO));
+
+        setText('currentTemp', fixed(current.temperature_2m, 1));
+        setText('currentDesc', weatherDescription(current.weather_code));
+        setHTML('currentIcon', iconSvg(weatherIconType(current.weather_code)));
+
+        setText('todayMax', fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined, 1));
+        setText('todayMin', fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined, 1));
+
+        for (let i = 0; i < 5; i += 1) updateForecastDay(i, data);
+
+        setText('windSpeed', fixed(current.wind_speed_10m, 1));
+        setText('windMax', fixed(Array.isArray(daily.wind_speed_10m_max) ? daily.wind_speed_10m_max[0] : undefined, 1));
+        setText('windDirection', windDirection(current.wind_direction_10m));
+
+        weatherHasData = true;
+      }
+
+      function weatherCacheKey() {
+        return [
+          CONFIG.weatherFetch.cachePrefix,
+          String(CONFIG.latitude),
+          String(CONFIG.longitude),
+          CONFIG.timezone
+        ].join(':');
+      }
+
+      function saveWeatherCache(data) {
         try {
-          clearError();
-          const response = await fetch(buildWeatherUrl(), { cache: 'no-store' });
-          if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
-          const data = await response.json();
-
-          const todayISO = data.daily && data.daily.time && data.daily.time[0];
-          setText('todayDate', formatDateDMY(todayISO));
-          setText('weekday', formatWeekday(todayISO));
-
-          setText('currentTemp', fixed(data.current.temperature_2m, 1));
-          setText('currentDesc', weatherDescription(data.current.weather_code));
-          setHTML('currentIcon', iconSvg(weatherIconType(data.current.weather_code)));
-
-          setText('todayMax', fixed(data.daily.temperature_2m_max[0], 1));
-          setText('todayMin', fixed(data.daily.temperature_2m_min[0], 1));
-
-          for (let i = 0; i < 5; i += 1) updateForecastDay(i, data);
-
-          setText('windSpeed', fixed(data.current.wind_speed_10m, 1));
-          setText('windMax', fixed(data.daily.wind_speed_10m_max[0], 1));
-          setText('windDirection', windDirection(data.current.wind_direction_10m));
-        } catch (error) {
-          showError(`Weather: ${error.message}`);
+          window.localStorage.setItem(weatherCacheKey(), JSON.stringify({
+            savedAt: Date.now(),
+            today: todayISOInTimezone(),
+            data
+          }));
+        } catch (_error) {
+          // localStorage may be blocked in some iframe/sandbox contexts. Ignore it.
         }
       }
 
-      function init() {
+      function applyCachedWeather() {
+        try {
+          const raw = window.localStorage.getItem(weatherCacheKey());
+          if (!raw) return false;
+
+          const cached = JSON.parse(raw);
+          const maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000;
+          const isFreshEnough = Date.now() - Number(cached.savedAt || 0) <= maxAgeMs;
+          const isForToday = cached.today === todayISOInTimezone();
+          const startsToday = cached.data && cached.data.daily && Array.isArray(cached.data.daily.time) && cached.data.daily.time[0] === todayISOInTimezone();
+
+          if (!isFreshEnough || (!isForToday && !startsToday)) return false;
+
+          applyWeatherData(cached.data);
+          return true;
+        } catch (_error) {
+          return false;
+        }
+      }
+
+      async function updateWeather(options = {}) {
+        const initial = Boolean(options.initial);
+        if (!initial) clearError();
+
+        try {
+          const data = await fetchJsonWithRetry(() => buildWeatherUrl(), {
+            attempts: initial ? CONFIG.weatherFetch.initialAttempts : CONFIG.weatherFetch.refreshAttempts,
+            timeoutMs: CONFIG.weatherFetch.timeoutMs,
+            retryDelayMs: CONFIG.weatherFetch.retryDelayMs
+          });
+          applyWeatherData(data);
+          saveWeatherCache(data);
+          clearError();
+        } catch (error) {
+          const cacheApplied = weatherHasData || applyCachedWeather();
+          if (!cacheApplied || CONFIG.debug) showError(`Weather: ${error.message}`);
+        }
+      }
+
+      async function updateDevice(options = {}) {
+        applyDeviceFallback();
+        if (!CONFIG.device.enabled || !CONFIG.device.apiKey) return;
+
+        const initial = Boolean(options.initial);
+        try {
+          const data = await fetchJsonWithRetry(CONFIG.device.url, {
+            attempts: initial ? CONFIG.device.fetch.initialAttempts : CONFIG.device.fetch.refreshAttempts,
+            timeoutMs: CONFIG.device.fetch.timeoutMs,
+            retryDelayMs: CONFIG.device.fetch.retryDelayMs,
+            headers: { 'api-key': CONFIG.device.apiKey }
+          });
+          const battery = nestedValue(data, 'result.battery.level');
+          const insideTemp = nestedValue(data, 'result.sensor.temp');
+          const insideHumidity = nestedValue(data, 'result.sensor.humidity');
+          setText('battery', fixed(battery, 0));
+          setText('insideTemp', fixed(insideTemp, 1));
+          setText('insideHumidity', fixed(insideHumidity, 1));
+        } catch (error) {
+          showError(`Device: ${error.message}`);
+        }
+      }
+
+      async function init() {
         applyUrlConfig();
+
         $('photoFrame').src = CONFIG.photoIframeUrl;
         setHTML('windIcon', windSvg());
         applyDeviceFallback();
-        updateWeather();
-        updateDevice();
+        applyCachedWeather();
+
+        // This first await is intentional. The script is type="module", so top-level
+        // await keeps the first page load from completing until the initial weather
+        // and sensor requests have either succeeded, timed out, or fallen back to cache.
+        await Promise.allSettled([
+          updateWeather({ initial: true }),
+          updateDevice({ initial: true })
+        ]);
+
+        window.__E1002_READY__ = true;
+
         const refreshMs = Math.max(1, Number(CONFIG.refreshMinutes) || 30) * 60 * 1000;
-        window.setInterval(updateWeather, refreshMs);
-        window.setInterval(updateDevice, refreshMs);
+        window.setInterval(() => updateWeather({ initial: false }), refreshMs);
+        window.setInterval(() => updateDevice({ initial: false }), refreshMs);
       }
 
-      init();
+      await init();
     </script>
   </body>
 </html>
