@@ -59,10 +59,6 @@
         border-radius: 0 !important;
       }
 
-      [v-cloak] {
-        display: none !important;
-      }
-
       /*
         Pixel map:
         outer border: 1 px via #screen padding
@@ -282,7 +278,7 @@
 
       .rangeRow {
         display: grid;
-        grid-template-columns: 40px 1fr;
+        grid-template-columns: 40px 1fr 28px;
         align-items: baseline;
         column-gap: 2px;
         min-width: 0;
@@ -318,7 +314,7 @@
 
       .statusRow {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 18px;
         align-items: baseline;
         column-gap: 2px;
         min-width: 0;
@@ -409,6 +405,7 @@
         z-index: 10;
         max-width: 632px;
         padding: 1px 3px;
+        display: none;
         overflow: hidden;
         background: var(--paper);
         color: var(--ink);
@@ -420,48 +417,58 @@
     </style>
   </head>
   <body>
-    <div
-      id="screen"
-      v-scope="Dashboard()"
-      @vue:mounted="mounted()"
-      @vue:unmounted="unmounted()"
-      v-cloak
-      aria-label="E1002 weather dashboard"
-    >
-      <div id="errorText" v-show="errorText">{{ errorText }}</div>
+    <div id="screen" aria-label="E1002 weather dashboard">
+      <div id="errorText"></div>
 
       <main class="leftColumn" aria-label="Photo and forecast">
         <section class="panel photoPanel" aria-label="Photo">
           <iframe
+            id="photoFrame"
             title="Photo iframe"
             referrerpolicy="no-referrer"
-            :src="config.photoIframeUrl"
           ></iframe>
         </section>
 
         <section class="dateRow" aria-label="Date">
-          <div class="dateCell">{{ weather.todayDate }}</div>
-          <div class="dateCell">{{ weather.weekday }}</div>
+          <div id="todayDate" class="dateCell">--/--/----</div>
+          <div id="weekday" class="dateCell">---------</div>
         </section>
 
         <section class="forecastGrid" aria-label="Five day forecast">
-          <article
-            v-for="day in weather.forecast"
-            :key="day.key"
-            class="forecastDay"
-          >
-            <div class="forecastDate">{{ day.date }}</div>
-            <div
-              class="forecastIcon weatherIcon"
-              v-html="iconSvg(day.icon)"
-            ></div>
-            <div class="forecastDesc">{{ day.description }}</div>
-            <div class="forecastTemp max">
-              <span>Max</span><b>{{ day.max }}°C</b>
-            </div>
-            <div class="forecastTemp min">
-              <span>Min</span><b>{{ day.min }}°C</b>
-            </div>
+          <article id="forecast0" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast1" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast2" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast3" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
+          </article>
+          <article id="forecast4" class="forecastDay">
+            <div class="forecastDate">--/--</div>
+            <div class="forecastIcon weatherIcon"></div>
+            <div class="forecastDesc">--</div>
+            <div class="forecastTemp max"><span>Max</span><b>--.-</b></div>
+            <div class="forecastTemp min"><span>Min</span><b>--.-</b></div>
           </article>
         </section>
       </main>
@@ -469,15 +476,12 @@
       <aside class="rightColumn" aria-label="Current weather and sensors">
         <section class="panel currentPanel" aria-label="Current temperature">
           <div class="currentTempRow">
-            <div id="currentTemp">{{ weather.current.temp }}</div>
+            <div id="currentTemp">--.-</div>
             <div id="currentUnit">°C</div>
           </div>
           <div class="currentConditionRow">
-            <div
-              class="currentIcon weatherIcon"
-              v-html="iconSvg(weather.current.icon)"
-            ></div>
-            <div id="currentDesc">{{ weather.current.description }}</div>
+            <div id="currentIcon" class="currentIcon weatherIcon"></div>
+            <div id="currentDesc">--</div>
           </div>
         </section>
 
@@ -487,51 +491,75 @@
         >
           <div class="rangeRow">
             <span class="rangeLabel">Max</span
-            ><span class="rangeValue">{{ weather.today.max }}°C</span
-            >
+            ><span id="todayMax" class="rangeValue">--.-</span
+            ><span class="rangeUnit">°C</span>
           </div>
           <div class="rangeRow">
             <span class="rangeLabel">Min</span
-            ><span class="rangeValue">{{ weather.today.min }}°C</span
-            >
+            ><span id="todayMin" class="rangeValue">--.-</span
+            ><span class="rangeUnit">°C</span>
           </div>
         </section>
 
         <section class="panel sensorPanel" aria-label="Device sensors">
           <div class="statusRow">
-            <span>Battery:</span><span class="num">{{ sensors.battery }}%</span
-            >
+            <span>Battery:</span><span id="battery" class="num">--</span
+            ><span>%</span>
           </div>
           <div class="statusRow">
-            <span>In Temp:</span
-            ><span class="num">{{ sensors.insideTemp }}°C</span>
+            <span>In Temp:</span><span id="insideTemp" class="num">--.-</span
+            ><span>°C</span>
           </div>
           <div class="statusRow">
             <span>Humidity:</span
-            ><span class="num">{{ sensors.insideHumidity }}%</span>
+            ><span id="insideHumidity" class="num">--.-</span><span>%</span>
           </div>
         </section>
 
         <section class="panel windCurrentPanel" aria-label="Current wind">
-          <div class="windIcon" v-html="windSvg()"></div>
-          <div id="windSpeed">{{ weather.wind.speed }}</div>
+          <div id="windIcon" class="windIcon"></div>
+          <div id="windSpeed">--.-</div>
           <div class="windUnit">km/h</div>
         </section>
 
         <section class="panel windMaxPanel" aria-label="Maximum wind">
           <div class="windMaxLabel">Max</div>
-          <div id="windMax">{{ weather.wind.max }}</div>
+          <div id="windMax">--.-</div>
         </section>
 
         <section class="panel windDirectionPanel" aria-label="Wind direction">
-          <div id="windDirection">{{ weather.wind.direction }}</div>
+          <div id="windDirection">-- Wind</div>
         </section>
       </aside>
     </div>
 
-    <script src="https://unpkg.com/petite-vue@0.4.1/dist/petite-vue.iife.js"></script>
     <script>
       'use strict';
+
+      const CONFIG = {
+        photoIframeUrl: 'https://dene-.github.io/pok--ink-website/',
+        latitude: 41.3474,
+        longitude: 2.0431,
+        timezone: 'Europe/Madrid',
+        locale: 'en-US',
+        refreshMinutes: 30,
+
+        // The weather API below is Open-Meteo and does not need a key.
+        weatherUrl: 'https://api.open-meteo.com/v1/forecast',
+
+        // Enabled by default. The request is only made when the iframe URL includes
+        // ?apikey=YOUR_KEY, #apikey=YOUR_KEY, or one of the accepted aliases below.
+        device: {
+          enabled: true,
+          url: 'https://sensecraft-hmi-api.seeed.cc/api/v1/user/device/iot_data/20227712',
+          apiKey: '',
+          fallback: {
+            battery: '--',
+            insideTemp: '--.-',
+            insideHumidity: '--.-'
+          }
+        }
+      };
 
       function queryParamsFromSearchAndHash() {
         const params = new URLSearchParams(window.location.search);
@@ -549,6 +577,46 @@
           if (value !== null && String(value).trim() !== '') return String(value).trim();
         }
         return '';
+      }
+
+      function applyUrlConfig() {
+        const params = queryParamsFromSearchAndHash();
+
+        const apiKey = firstParam(params, ['apikey', 'apiKey', 'api_key', 'sensecraftApiKey', 'sensecraft_key', 'key']);
+        if (apiKey) {
+          // URLSearchParams decodes + as a space. Most pasted API keys should be URL-encoded,
+          // but this restores raw plus signs for keys pasted without encoding.
+          CONFIG.device.apiKey = apiKey.replace(/ /g, '+');
+        }
+
+        const deviceUrl = firstParam(params, ['deviceUrl', 'device_url']);
+        if (deviceUrl) CONFIG.device.url = deviceUrl;
+
+        const photoUrl = firstParam(params, ['photoUrl', 'photo', 'photoIframeUrl']);
+        if (photoUrl) CONFIG.photoIframeUrl = photoUrl;
+
+        const latitude = Number(firstParam(params, ['lat', 'latitude']));
+        const longitude = Number(firstParam(params, ['lon', 'lng', 'longitude']));
+        if (Number.isFinite(latitude)) CONFIG.latitude = latitude;
+        if (Number.isFinite(longitude)) CONFIG.longitude = longitude;
+
+        const timezone = firstParam(params, ['timezone', 'tz']);
+        if (timezone) CONFIG.timezone = timezone;
+
+        const sensors = firstParam(params, ['sensors', 'deviceSensors']);
+        if (['0', 'false', 'off', 'no'].includes(sensors.toLowerCase())) CONFIG.device.enabled = false;
+      }
+
+      const $ = (id) => document.getElementById(id);
+
+      function setText(id, value) {
+        const el = $(id);
+        if (el) el.textContent = value;
+      }
+
+      function setHTML(id, html) {
+        const el = $(id);
+        if (el) el.innerHTML = html;
       }
 
       function fixed(value, decimals = 1) {
@@ -571,11 +639,11 @@
         return month && day ? `${day}/${month}` : '--/--';
       }
 
-      function formatWeekday(isoDate, locale, timezone) {
+      function formatWeekday(isoDate) {
         const { year, month, day } = datePartsFromISODate(isoDate);
         if (!year || !month || !day) return '---------';
         const d = new Date(`${year}-${month}-${day}T12:00:00`);
-        return new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: timezone }).format(d);
+        return new Intl.DateTimeFormat(CONFIG.locale, { weekday: 'long', timeZone: CONFIG.timezone }).format(d);
       }
 
       function weatherDescription(code) {
@@ -660,218 +728,111 @@
         return String(path).split('.').reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);
       }
 
-      function emptyForecast() {
-        return Array.from({ length: 5 }, (_, index) => ({
-          key: `placeholder-${index}`,
-          date: '--/--',
-          icon: 'cloud',
-          description: '--',
-          max: '--.-',
-          min: '--.-'
-        }));
+      function applyDeviceFallback() {
+        setText('battery', CONFIG.device.fallback.battery);
+        setText('insideTemp', CONFIG.device.fallback.insideTemp);
+        setText('insideHumidity', CONFIG.device.fallback.insideHumidity);
       }
 
-      function Dashboard() {
-        return {
-          config: {
-            photoIframeUrl: 'https://dene-.github.io/pok--ink-website/',
-            latitude: 41.3474,
-            longitude: 2.0431,
-            timezone: 'Europe/Madrid',
-            locale: 'en-US',
-            refreshMinutes: 30,
-            weatherUrl: 'https://api.open-meteo.com/v1/forecast',
-            device: {
-              enabled: true,
-              url: 'https://sensecraft-hmi-api.seeed.cc/api/v1/user/device/iot_data/20227712',
-              apiKey: '',
-              fallback: {
-                battery: '--',
-                insideTemp: '--.-',
-                insideHumidity: '--.-'
-              }
-            }
-          },
-
-          weather: {
-            todayDate: '--/--/----',
-            weekday: '---------',
-            current: {
-              temp: '--.-',
-              icon: 'cloud',
-              description: '--'
-            },
-            today: {
-              max: '--.-',
-              min: '--.-'
-            },
-            wind: {
-              speed: '--.-',
-              max: '--.-',
-              direction: '-- Wind'
-            },
-            forecast: emptyForecast()
-          },
-
-          sensors: {
-            battery: '--',
-            insideTemp: '--.-',
-            insideHumidity: '--.-'
-          },
-
-          errors: {
-            weather: '',
-            device: ''
-          },
-
-          timers: [],
-
-          iconSvg,
-          windSvg,
-
-          get errorText() {
-            return [this.errors.weather, this.errors.device].filter(Boolean).join(' | ');
-          },
-
-          mounted() {
-            this.applyUrlConfig();
-            this.applyDeviceFallback();
-            this.updateWeather();
-            this.updateDevice();
-
-            const refreshMs = Math.max(1, Number(this.config.refreshMinutes) || 30) * 60 * 1000;
-            this.timers.push(window.setInterval(() => this.updateWeather(), refreshMs));
-            this.timers.push(window.setInterval(() => this.updateDevice(), refreshMs));
-          },
-
-          unmounted() {
-            for (const timer of this.timers) window.clearInterval(timer);
-            this.timers = [];
-          },
-
-          applyUrlConfig() {
-            const params = queryParamsFromSearchAndHash();
-
-            const apiKey = firstParam(params, ['apikey', 'apiKey', 'api_key', 'sensecraftApiKey', 'sensecraft_key', 'key']);
-            if (apiKey) {
-              // URLSearchParams decodes + as a space. Most pasted API keys should be URL-encoded,
-              // but this restores raw plus signs for keys pasted without encoding.
-              this.config.device.apiKey = apiKey.replace(/ /g, '+');
-            }
-
-            const deviceUrl = firstParam(params, ['deviceUrl', 'device_url']);
-            if (deviceUrl) this.config.device.url = deviceUrl;
-
-            const photoUrl = firstParam(params, ['photoUrl', 'photo', 'photoIframeUrl']);
-            if (photoUrl) this.config.photoIframeUrl = photoUrl;
-
-            const latitude = Number(firstParam(params, ['lat', 'latitude']));
-            const longitude = Number(firstParam(params, ['lon', 'lng', 'longitude']));
-            if (Number.isFinite(latitude)) this.config.latitude = latitude;
-            if (Number.isFinite(longitude)) this.config.longitude = longitude;
-
-            const timezone = firstParam(params, ['timezone', 'tz']);
-            if (timezone) this.config.timezone = timezone;
-
-            const sensors = firstParam(params, ['sensors', 'deviceSensors']);
-            if (['0', 'false', 'off', 'no'].includes(sensors.toLowerCase())) this.config.device.enabled = false;
-          },
-
-          applyDeviceFallback() {
-            this.sensors = {
-              battery: this.config.device.fallback.battery,
-              insideTemp: this.config.device.fallback.insideTemp,
-              insideHumidity: this.config.device.fallback.insideHumidity
-            };
-          },
-
-          buildWeatherUrl() {
-            const params = new URLSearchParams({
-              latitude: String(this.config.latitude),
-              longitude: String(this.config.longitude),
-              timezone: this.config.timezone,
-              forecast_days: '5',
-              timeformat: 'iso8601',
-              temperature_unit: 'celsius',
-              wind_speed_unit: 'kmh',
-              current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
-              daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
-            });
-            return `${this.config.weatherUrl}?${params.toString()}`;
-          },
-
-          forecastDayFromApi(data, index) {
-            const code = data.daily.weather_code[index];
-            const isoDate = data.daily.time[index];
-            return {
-              key: isoDate || `day-${index}`,
-              date: formatDateDM(isoDate),
-              icon: weatherIconType(code),
-              description: weatherDescription(code),
-              max: fixed(data.daily.temperature_2m_max[index], 1),
-              min: fixed(data.daily.temperature_2m_min[index], 1)
-            };
-          },
-
-          async updateWeather() {
-            try {
-              this.errors.weather = '';
-              const response = await fetch(this.buildWeatherUrl(), { cache: 'no-store' });
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              const data = await response.json();
-
-              const todayISO = data.daily && data.daily.time && data.daily.time[0];
-              const currentCode = data.current && data.current.weather_code;
-
-              this.weather = {
-                todayDate: formatDateDMY(todayISO),
-                weekday: formatWeekday(todayISO, this.config.locale, this.config.timezone),
-                current: {
-                  temp: fixed(data.current && data.current.temperature_2m, 1),
-                  icon: weatherIconType(currentCode),
-                  description: weatherDescription(currentCode)
-                },
-                today: {
-                  max: fixed(data.daily && data.daily.temperature_2m_max && data.daily.temperature_2m_max[0], 1),
-                  min: fixed(data.daily && data.daily.temperature_2m_min && data.daily.temperature_2m_min[0], 1)
-                },
-                wind: {
-                  speed: fixed(data.current && data.current.wind_speed_10m, 1),
-                  max: fixed(data.daily && data.daily.wind_speed_10m_max && data.daily.wind_speed_10m_max[0], 1),
-                  direction: windDirection(data.current && data.current.wind_direction_10m)
-                },
-                forecast: Array.from({ length: 5 }, (_, index) => this.forecastDayFromApi(data, index))
-              };
-            } catch (error) {
-              this.errors.weather = `Weather: ${error.message}`;
-            }
-          },
-
-          async updateDevice() {
-            this.errors.device = '';
-            this.applyDeviceFallback();
-            if (!this.config.device.enabled || !this.config.device.apiKey) return;
-
-            try {
-              const response = await fetch(this.config.device.url, {
-                headers: { 'api-key': this.config.device.apiKey }
-              });
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              const data = await response.json();
-
-              this.sensors = {
-                battery: fixed(nestedValue(data, 'result.battery.level'), 0),
-                insideTemp: fixed(nestedValue(data, 'result.sensor.temp'), 1),
-                insideHumidity: fixed(nestedValue(data, 'result.sensor.humidity'), 1)
-              };
-            } catch (error) {
-              this.errors.device = `Device: ${error.message}`;
-            }
-          }
-        };
+      async function updateDevice() {
+        applyDeviceFallback();
+        if (!CONFIG.device.enabled || !CONFIG.device.apiKey) return;
+        try {
+          const response = await fetch(CONFIG.device.url, { headers: { 'api-key': CONFIG.device.apiKey } });
+          if (!response.ok) throw new Error(`Device HTTP ${response.status}`);
+          const data = await response.json();
+          const battery = nestedValue(data, 'result.battery.level');
+          const insideTemp = nestedValue(data, 'result.sensor.temp');
+          const insideHumidity = nestedValue(data, 'result.sensor.humidity');
+          setText('battery', fixed(battery, 0));
+          setText('insideTemp', fixed(insideTemp, 1));
+          setText('insideHumidity', fixed(insideHumidity, 1));
+        } catch (error) {
+          showError(`Device: ${error.message}`);
+        }
       }
 
-      PetiteVue.createApp({ Dashboard }).mount('#screen');
+      function showError(text) {
+        const el = $('errorText');
+        if (!el) return;
+        el.textContent = text;
+        el.style.display = 'block';
+      }
+
+      function clearError() {
+        const el = $('errorText');
+        if (!el) return;
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+
+      function buildWeatherUrl() {
+        const params = new URLSearchParams({
+          latitude: String(CONFIG.latitude),
+          longitude: String(CONFIG.longitude),
+          timezone: CONFIG.timezone,
+          forecast_days: '5',
+          timeformat: 'iso8601',
+          temperature_unit: 'celsius',
+          wind_speed_unit: 'kmh',
+          current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+          daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
+        });
+        return `${CONFIG.weatherUrl}?${params.toString()}`;
+      }
+
+      function updateForecastDay(index, data) {
+        const root = $(`forecast${index}`);
+        if (!root) return;
+        const code = data.daily.weather_code[index];
+        root.querySelector('.forecastDate').textContent = formatDateDM(data.daily.time[index]);
+        root.querySelector('.forecastIcon').innerHTML = iconSvg(weatherIconType(code));
+        root.querySelector('.forecastDesc').textContent = weatherDescription(code);
+        root.querySelector('.forecastTemp.max b').textContent = fixed(data.daily.temperature_2m_max[index], 1);
+        root.querySelector('.forecastTemp.min b').textContent = fixed(data.daily.temperature_2m_min[index], 1);
+      }
+
+      async function updateWeather() {
+        try {
+          clearError();
+          const response = await fetch(buildWeatherUrl(), { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
+          const data = await response.json();
+
+          const todayISO = data.daily && data.daily.time && data.daily.time[0];
+          setText('todayDate', formatDateDMY(todayISO));
+          setText('weekday', formatWeekday(todayISO));
+
+          setText('currentTemp', fixed(data.current.temperature_2m, 1));
+          setText('currentDesc', weatherDescription(data.current.weather_code));
+          setHTML('currentIcon', iconSvg(weatherIconType(data.current.weather_code)));
+
+          setText('todayMax', fixed(data.daily.temperature_2m_max[0], 1));
+          setText('todayMin', fixed(data.daily.temperature_2m_min[0], 1));
+
+          for (let i = 0; i < 5; i += 1) updateForecastDay(i, data);
+
+          setText('windSpeed', fixed(data.current.wind_speed_10m, 1));
+          setText('windMax', fixed(data.daily.wind_speed_10m_max[0], 1));
+          setText('windDirection', windDirection(data.current.wind_direction_10m));
+        } catch (error) {
+          showError(`Weather: ${error.message}`);
+        }
+      }
+
+      function init() {
+        applyUrlConfig();
+        $('photoFrame').src = CONFIG.photoIframeUrl;
+        setHTML('windIcon', windSvg());
+        applyDeviceFallback();
+        updateWeather();
+        updateDevice();
+        const refreshMs = Math.max(1, Number(CONFIG.refreshMinutes) || 30) * 60 * 1000;
+        window.setInterval(updateWeather, refreshMs);
+        window.setInterval(updateDevice, refreshMs);
+      }
+
+      init();
     </script>
   </body>
 </html>
