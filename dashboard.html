@@ -548,6 +548,7 @@
         debug: false,
 
         // The weather API below is Open-Meteo and does not need a key.
+        localWeatherUrl: './weather.json',
         weatherUrl: 'https://api.open-meteo.com/v1/forecast',
         weatherFetch: {
           initialAttempts: 2,
@@ -579,6 +580,7 @@
       };
 
       let weatherHasData = false;
+      let weatherSource = 'none';
 
       function queryParamsFromSearchAndHash() {
         const params = new URLSearchParams(window.location.search);
@@ -621,6 +623,12 @@
 
         const timezone = firstParam(params, ['timezone', 'tz']);
         if (timezone) CONFIG.timezone = timezone;
+
+        const localWeatherUrl = firstParam(params, ['localWeatherUrl', 'localWeather', 'weatherJson']);
+        if (localWeatherUrl) CONFIG.localWeatherUrl = localWeatherUrl;
+
+        const weatherUrl = firstParam(params, ['weatherUrl', 'weatherApi']);
+        if (weatherUrl) CONFIG.weatherUrl = weatherUrl;
 
         const sensors = firstParam(params, ['sensors', 'deviceSensors']);
         if (['0', 'false', 'off', 'no'].includes(sensors.toLowerCase())) CONFIG.device.enabled = false;
@@ -840,6 +848,12 @@
         if (!Array.isArray(data.daily.time) || data.daily.time.length < 6) throw new Error('missing forecast dates');
       }
 
+      function validateFreshWeatherData(data) {
+        validateWeatherData(data);
+        const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
+        if (firstDay !== todayISOInTimezone()) throw new Error('stale weather.json');
+      }
+
       function updateForecastDay(index, data) {
         const root = $(`forecast${index}`);
         if (!root) return;
@@ -877,6 +891,27 @@
         setText('windDirection', windDirection(current.wind_direction_10m));
 
         weatherHasData = true;
+      }
+
+      async function fetchLocalWeather() {
+        const data = await fetchJsonWithRetry(CONFIG.localWeatherUrl, {
+          attempts: 1,
+          timeoutMs: CONFIG.weatherFetch.timeoutMs,
+          cache: 'no-cache'
+        });
+        validateFreshWeatherData(data);
+        weatherSource = 'local';
+        return data;
+      }
+
+      async function fetchRemoteWeather(initial) {
+        const data = await fetchJsonWithRetry(() => buildWeatherUrl(), {
+          attempts: initial ? CONFIG.weatherFetch.initialAttempts : CONFIG.weatherFetch.refreshAttempts,
+          timeoutMs: CONFIG.weatherFetch.timeoutMs,
+          retryDelayMs: CONFIG.weatherFetch.retryDelayMs
+        });
+        weatherSource = 'remote';
+        return data;
       }
 
       function weatherCacheKey() {
@@ -925,17 +960,20 @@
         if (!initial) clearError();
 
         try {
-          const data = await fetchJsonWithRetry(() => buildWeatherUrl(), {
-            attempts: initial ? CONFIG.weatherFetch.initialAttempts : CONFIG.weatherFetch.refreshAttempts,
-            timeoutMs: CONFIG.weatherFetch.timeoutMs,
-            retryDelayMs: CONFIG.weatherFetch.retryDelayMs
-          });
+          let data;
+          try {
+            data = await fetchLocalWeather();
+          } catch (localError) {
+            data = await fetchRemoteWeather(initial);
+            if (CONFIG.debug) showError(`Weather: ${weatherSource}; local ${localError.message}`);
+          }
           applyWeatherData(data);
           saveWeatherCache(data);
-          clearError();
+          if (!CONFIG.debug) clearError();
         } catch (error) {
           const cacheApplied = weatherHasData || applyCachedWeather();
-          if (!cacheApplied || CONFIG.debug) showError(`Weather: ${error.message}`);
+          if (cacheApplied) weatherSource = 'cache';
+          if (!cacheApplied || CONFIG.debug) showError(`Weather: ${weatherSource}; ${error.message}`);
         }
       }
 
