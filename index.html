@@ -31,52 +31,23 @@
   </style>
 </head>
 <body>
-  <img
-    id="random-image"
-    src="./assets/photos/iceland-001.png"
-    alt="Random Iceland landscape"
-    fetchpriority="high"
-    decoding="sync"
-  />
-
   <script>
-    const img = document.getElementById("random-image");
+    const PHOTO_COUNT = 200;
+    const selectedPhoto = String(Math.floor(Math.random() * PHOTO_COUNT) + 1).padStart(3, "0");
+    const selectedSrc = `./assets/photos/iceland-${selectedPhoto}.png`;
 
-    async function loadImages() {
-      const response = await fetch("./optimized-images.json", { cache: "no-cache" });
-
-      if (!response.ok) {
-        throw new Error(`Photo manifest failed: ${response.status}`);
-      }
-
-      const manifest = await response.json();
-      const images = Array.isArray(manifest.images) ? manifest.images : [];
-      return images.map((image) => image.src).filter(Boolean);
-    }
-
-    function showImage(src) {
-      if (!src || img.getAttribute("src") === src) return;
-
-      const nextImage = new Image();
-      nextImage.decoding = "sync";
-      nextImage.onload = () => {
-        img.src = src;
-      };
-      nextImage.src = src;
-    }
-
-    loadImages()
-      .then((images) => {
-        if (images.length === 0) {
-          throw new Error("Photo manifest is empty");
-        }
-
-        showImage(images[Math.floor(Math.random() * images.length)]);
-      })
-      .catch((error) => {
-        console.error(error);
-        document.body.style.background = "#fff";
-      });
+    document.write(
+      `<img id="random-image" src="${selectedSrc}" alt="Random Iceland landscape" fetchpriority="high" decoding="sync" />`
+    );
   </script>
+  <noscript>
+    <img
+      id="random-image"
+      src="./assets/photos/iceland-001.png"
+      alt="Random Iceland landscape"
+      fetchpriority="high"
+      decoding="sync"
+    />
+  </noscript>
 </body>
 </html>
