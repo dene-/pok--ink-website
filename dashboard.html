@@ -82,7 +82,6 @@
 
       .leftColumn,
       .rightColumn,
-      .dateRow,
       .forecastGrid {
         min-width: 0;
         min-height: 0;
@@ -91,7 +90,7 @@
 
       .leftColumn {
         display: grid;
-        grid-template-rows: 309px 39px 128px;
+        grid-template-rows: 349px 128px;
         gap: 1px;
       }
 
@@ -102,7 +101,6 @@
       }
 
       .panel,
-      .dateCell,
       .forecastDay {
         min-width: 0;
         min-height: 0;
@@ -116,24 +114,6 @@
         height: 100%;
         border: 0;
         background: var(--paper);
-      }
-
-      .dateRow {
-        display: grid;
-        grid-template-columns: 319px 319px;
-        gap: 1px;
-      }
-
-      .dateCell {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 6px;
-        font-size: 25px;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.04em;
-        white-space: nowrap;
       }
 
       .forecastGrid {
@@ -173,8 +153,8 @@
       }
 
       .currentIcon {
-        width: 44px;
-        height: 44px;
+        width: 38px;
+        height: 38px;
       }
 
       .windIcon {
@@ -231,8 +211,29 @@
 
       .currentPanel {
         display: grid;
-        grid-template-rows: 74px 1fr;
-        padding: 8px 8px 7px;
+        grid-template-rows: 31px 56px 1fr;
+        padding: 5px 8px 6px;
+      }
+
+      .dateStack {
+        display: grid;
+        grid-template-rows: 16px 15px;
+        align-items: center;
+        justify-items: center;
+        min-width: 0;
+        white-space: nowrap;
+      }
+
+      #todayDate {
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      #weekday {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1;
       }
 
       .currentTempRow {
@@ -245,7 +246,7 @@
       #currentTemp {
         align-self: end;
         justify-self: center;
-        font-size: 62px;
+        font-size: 50px;
         font-weight: 700;
         line-height: 0.92;
         letter-spacing: -0.08em;
@@ -261,7 +262,7 @@
 
       .currentConditionRow {
         display: grid;
-        grid-template-columns: 48px 1fr;
+        grid-template-columns: 40px 1fr;
         align-items: center;
         column-gap: 4px;
         min-width: 0;
@@ -436,11 +437,6 @@
           ></iframe>
         </section>
 
-        <section class="dateRow" aria-label="Date">
-          <div id="todayDate" class="dateCell">--/--/----</div>
-          <div id="weekday" class="dateCell">---------</div>
-        </section>
-
         <section class="forecastGrid" aria-label="Five day forecast">
           <article id="forecast0" class="forecastDay">
             <div class="forecastDate">--/--</div>
@@ -477,6 +473,10 @@
 
       <aside class="rightColumn" aria-label="Current weather and sensors">
         <section class="panel currentPanel" aria-label="Current temperature">
+          <div class="dateStack" aria-label="Date">
+            <div id="todayDate">--/--/----</div>
+            <div id="weekday">---------</div>
+          </div>
           <div class="currentTempRow">
             <div id="currentTemp">--.-</div>
             <div id="currentUnit">°C</div>
