@@ -566,10 +566,10 @@
           url: 'https://sensecraft-hmi-api.seeed.cc/api/v1/user/device/iot_data/20227712',
           apiKey: '',
           fetch: {
-            initialAttempts: 2,
+            initialAttempts: 4,
             refreshAttempts: 1,
-            timeoutMs: 5000,
-            retryDelayMs: 400
+            timeoutMs: 15000,
+            retryDelayMs: 1000
           },
           fallback: {
             battery: '--',
@@ -581,6 +581,7 @@
 
       let weatherHasData = false;
       let weatherSource = 'none';
+      let deviceHasData = false;
 
       function queryParamsFromSearchAndHash() {
         const params = new URLSearchParams(window.location.search);
@@ -809,6 +810,7 @@
             const url = typeof urlOrBuilder === 'function' ? urlOrBuilder() : urlOrBuilder;
             const response = await fetch(url, {
               cache: options.cache || 'default',
+              credentials: options.credentials || 'same-origin',
               signal: controller.signal,
               headers: options.headers || undefined
             });
@@ -978,25 +980,45 @@
       }
 
       async function updateDevice(options = {}) {
-        applyDeviceFallback();
-        if (!CONFIG.device.enabled || !CONFIG.device.apiKey) return;
+        if (!CONFIG.device.enabled) {
+          window.__E1002_DEVICE_STATUS__ = 'disabled';
+          if (!deviceHasData) applyDeviceFallback();
+          return;
+        }
+
+        if (!CONFIG.device.apiKey) {
+          window.__E1002_DEVICE_STATUS__ = 'missing_api_key';
+          if (!deviceHasData) applyDeviceFallback();
+          return;
+        }
 
         const initial = Boolean(options.initial);
+        window.__E1002_DEVICE_STATUS__ = 'loading';
         try {
           const data = await fetchJsonWithRetry(CONFIG.device.url, {
             attempts: initial ? CONFIG.device.fetch.initialAttempts : CONFIG.device.fetch.refreshAttempts,
             timeoutMs: CONFIG.device.fetch.timeoutMs,
             retryDelayMs: CONFIG.device.fetch.retryDelayMs,
             cache: 'no-store',
-            headers: { 'api-key': CONFIG.device.apiKey }
+            credentials: 'omit',
+            headers: { 'Api-Key': CONFIG.device.apiKey }
           });
           const battery = nestedValue(data, 'result.battery.level');
           const insideTemp = nestedValue(data, 'result.sensor.temp');
           const insideHumidity = nestedValue(data, 'result.sensor.humidity');
+
+          if (![battery, insideTemp, insideHumidity].every((value) => Number.isFinite(Number(value)))) {
+            throw new Error('missing sensor fields');
+          }
+
           setText('battery', fixed(battery, 0));
           setText('insideTemp', fixed(insideTemp, 1));
           setText('insideHumidity', fixed(insideHumidity, 1));
+          deviceHasData = true;
+          window.__E1002_DEVICE_STATUS__ = 'ok';
         } catch (error) {
+          if (!deviceHasData) applyDeviceFallback();
+          window.__E1002_DEVICE_STATUS__ = `error: ${error.message}`;
           showError(`Device: ${error.message}`);
         }
       }
