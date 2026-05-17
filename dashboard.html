@@ -124,17 +124,17 @@
 
       .forecastDay {
         display: grid;
-        grid-template-rows: 28px 44px minmax(22px, 1fr) 23px;
+        grid-template-rows: 20px 78px 22px;
         align-items: center;
         justify-items: center;
-        padding: 3px 7px 5px;
+        padding: 2px 7px 4px;
       }
 
       .forecastDate {
-        font-size: 19px;
+        font-size: 14px;
         font-weight: 700;
         line-height: 1;
-        letter-spacing: -0.04em;
+        letter-spacing: 0;
         white-space: nowrap;
       }
 
@@ -150,6 +150,49 @@
       .forecastIcon {
         width: 42px;
         height: 42px;
+      }
+
+      .forecastPeriods {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        align-self: stretch;
+      }
+
+      .forecastPeriod {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 12px 1fr 10px;
+        align-items: center;
+        justify-items: center;
+        padding: 1px 0 0;
+      }
+
+      .forecastPeriodLabel {
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .forecastPeriodIcon {
+        width: 36px;
+        height: 36px;
+      }
+
+      .forecastPeriodIcon svg * {
+        vector-effect: none;
+      }
+
+      .forecastPeriodText {
+        width: 100%;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 10px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
       }
 
       .currentIcon {
@@ -175,15 +218,6 @@
       .weatherIcon svg *,
       .windIcon svg * {
         vector-effect: non-scaling-stroke;
-      }
-
-      .forecastDesc {
-        width: 100%;
-        font-size: 12.5px;
-        font-weight: 700;
-        line-height: 13.5px;
-        text-align: center;
-        overflow-wrap: anywhere;
       }
 
       .forecastTempRange {
@@ -440,32 +474,27 @@
         <section class="forecastGrid" aria-label="Five day forecast">
           <article id="forecast0" class="forecastDay">
             <div class="forecastDate">--/--</div>
-            <div class="forecastIcon weatherIcon"></div>
-            <div class="forecastDesc">--</div>
+            <div class="forecastPeriods"></div>
             <div class="forecastTempRange"><span class="tempMin">--.-°C</span><span>-</span><span class="tempMax">--.-°C</span></div>
           </article>
           <article id="forecast1" class="forecastDay">
             <div class="forecastDate">--/--</div>
-            <div class="forecastIcon weatherIcon"></div>
-            <div class="forecastDesc">--</div>
+            <div class="forecastPeriods"></div>
             <div class="forecastTempRange"><span class="tempMin">--.-°C</span><span>-</span><span class="tempMax">--.-°C</span></div>
           </article>
           <article id="forecast2" class="forecastDay">
             <div class="forecastDate">--/--</div>
-            <div class="forecastIcon weatherIcon"></div>
-            <div class="forecastDesc">--</div>
+            <div class="forecastPeriods"></div>
             <div class="forecastTempRange"><span class="tempMin">--.-°C</span><span>-</span><span class="tempMax">--.-°C</span></div>
           </article>
           <article id="forecast3" class="forecastDay">
             <div class="forecastDate">--/--</div>
-            <div class="forecastIcon weatherIcon"></div>
-            <div class="forecastDesc">--</div>
+            <div class="forecastPeriods"></div>
             <div class="forecastTempRange"><span class="tempMin">--.-°C</span><span>-</span><span class="tempMax">--.-°C</span></div>
           </article>
           <article id="forecast4" class="forecastDay">
             <div class="forecastDate">--/--</div>
-            <div class="forecastIcon weatherIcon"></div>
-            <div class="forecastDesc">--</div>
+            <div class="forecastPeriods"></div>
             <div class="forecastTempRange"><span class="tempMin">--.-°C</span><span>-</span><span class="tempMax">--.-°C</span></div>
           </article>
         </section>
@@ -690,6 +719,14 @@
         return new Intl.DateTimeFormat(CONFIG.locale, { weekday: 'long', timeZone: CONFIG.timezone }).format(d);
       }
 
+      function formatForecastDate(isoDate) {
+        const { year, month, day } = datePartsFromISODate(isoDate);
+        if (!year || !month || !day) return '--/--';
+        const d = new Date(`${year}-${month}-${day}T12:00:00`);
+        const weekday = new Intl.DateTimeFormat(CONFIG.locale, { weekday: 'short', timeZone: CONFIG.timezone }).format(d);
+        return `${weekday} ${day}/${month}`;
+      }
+
       function weatherDescription(code) {
         const map = {
           0: 'Clear',
@@ -735,24 +772,112 @@
         return 'cloud';
       }
 
-      function iconSvg(type) {
+      function weatherPeriodType(code) {
+        const c = Number(code);
+        if (c === 0 || c === 1) return 'sun';
+        if (c === 2 || c === 3) return 'cloud';
+        if (c === 45 || c === 48) return 'fog';
+        if ([51, 53, 55, 56, 57, 80, 81, 82].includes(c)) return 'showers';
+        if ([61, 63, 65, 66, 67].includes(c)) return 'rain';
+        if ([71, 73, 75, 77, 85, 86].includes(c)) return 'snow';
+        if ([95, 96, 99].includes(c)) return 'storm';
+        return 'cloud';
+      }
+
+      function periodHoursForLabel(label) {
+        return label === 'AM' ? { start: 6, end: 11 } : { start: 12, end: 20 };
+      }
+
+      function shortWeatherLabel(type) {
+        const labels = {
+          sun: 'Clear',
+          cloud: 'Clouds',
+          fog: 'Fog',
+          rain: 'Rain',
+          showers: 'Showers',
+          storm: 'Storm',
+          snow: 'Snow'
+        };
+        return labels[type] || 'Clouds';
+      }
+
+      function average(values) {
+        const finite = values.map(Number).filter(Number.isFinite);
+        if (!finite.length) return 0;
+        return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+      }
+
+      function summarizeForecastPeriod(data, isoDate, label, dailyCode) {
+        const fallbackType = weatherPeriodType(dailyCode);
+        const hourly = data.hourly || {};
+        const times = Array.isArray(hourly.time) ? hourly.time : [];
+        if (!isoDate || !times.length) {
+          return { type: fallbackType, label: shortWeatherLabel(fallbackType) };
+        }
+
+        const hours = periodHoursForLabel(label);
+        const entries = times.map((time, index) => {
+          const hour = Number(String(time).slice(11, 13));
+          return { time, index, hour };
+        }).filter((entry) => (
+          String(entry.time).slice(0, 10) === isoDate
+          && Number.isFinite(entry.hour)
+          && entry.hour >= hours.start
+          && entry.hour <= hours.end
+        ));
+
+        if (!entries.length) return { type: fallbackType, label: shortWeatherLabel(fallbackType) };
+
+        const codeCounts = entries.reduce((counts, entry) => {
+          const type = weatherPeriodType(hourly.weather_code && hourly.weather_code[entry.index]);
+          counts[type] = (counts[type] || 0) + 1;
+          return counts;
+        }, {});
+        const valuesFor = (name) => entries.map((entry) => hourly[name] && hourly[name][entry.index]);
+        const precipitationTotal = valuesFor('precipitation').concat(valuesFor('rain'), valuesFor('showers'))
+          .map(Number)
+          .filter(Number.isFinite)
+          .reduce((sum, value) => sum + value, 0);
+        const precipitationProbability = Math.max(0, ...valuesFor('precipitation_probability').map(Number).filter(Number.isFinite));
+        const cloudCover = average(valuesFor('cloud_cover'));
+
+        let type = 'sun';
+        if ((codeCounts.storm || 0) >= 2) {
+          type = 'storm';
+        } else if ((codeCounts.snow || 0) >= 1) {
+          type = 'snow';
+        } else if ((codeCounts.showers || 0) >= 1 || (precipitationProbability >= 55 && precipitationTotal > 0)) {
+          type = 'showers';
+        } else if ((codeCounts.rain || 0) >= 1 || precipitationTotal >= 1) {
+          type = 'rain';
+        } else if ((codeCounts.fog || 0) >= Math.ceil(entries.length / 2)) {
+          type = 'fog';
+        } else if (cloudCover >= 35 || (codeCounts.cloud || 0) > (codeCounts.sun || 0)) {
+          type = 'cloud';
+        }
+
+        return { type, label: shortWeatherLabel(type) };
+      }
+
+      function iconSvg(type, strokeWidth = 5) {
+        const heavyStrokeWidth = strokeWidth;
         const common = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
         if (type === 'sun') {
-          return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" ${common} stroke-width="5"/><path d="M32 5v10M32 49v10M5 32h10M49 32h10M13 13l7 7M44 44l7 7M51 13l-7 7M20 44l-7 7" ${common} stroke-width="5"/></svg>`;
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" ${common} stroke-width="${strokeWidth}"/><path d="M32 5v10M32 49v10M5 32h10M49 32h10M13 13l7 7M44 44l7 7M51 13l-7 7M20 44l-7 7" ${common} stroke-width="${strokeWidth}"/></svg>`;
         }
-        if (type === 'rain') {
-          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 44H48a12 12 0 0 0 0-24h-3A17 17 0 0 0 15 27a10 10 0 0 0 5 17Z" ${common} stroke-width="5"/><path d="M24 51l-4 8M38 51l-4 8M52 51l-4 8" ${common} stroke-width="5"/></svg>`;
+        if (type === 'rain' || type === 'showers') {
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 44H48a12 12 0 0 0 0-24h-3A17 17 0 0 0 15 27a10 10 0 0 0 5 17Z" ${common} stroke-width="${strokeWidth}"/><path d="M24 51l-4 8M38 51l-4 8M52 51l-4 8" ${common} stroke-width="${strokeWidth}"/></svg>`;
         }
         if (type === 'storm') {
-          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 39H48a11 11 0 0 0 0-22h-3A16 16 0 0 0 15 24a9 9 0 0 0 5 15Z" ${common} stroke-width="5"/><path d="M32 36l-7 13h8l-4 11l13-18h-8l4-6Z" fill="currentColor"/></svg>`;
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 39H48a11 11 0 0 0 0-22h-3A16 16 0 0 0 15 24a9 9 0 0 0 5 15Z" ${common} stroke-width="${strokeWidth}"/><path d="M32 36l-7 13h8l-4 11l13-18h-8l4-6Z" fill="currentColor"/></svg>`;
         }
         if (type === 'snow') {
-          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 39H48a11 11 0 0 0 0-22h-3A16 16 0 0 0 15 24a9 9 0 0 0 5 15Z" ${common} stroke-width="5"/><path d="M24 50l8 8M32 50l-8 8M44 50l8 8M52 50l-8 8" ${common} stroke-width="4"/></svg>`;
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 39H48a11 11 0 0 0 0-22h-3A16 16 0 0 0 15 24a9 9 0 0 0 5 15Z" ${common} stroke-width="${strokeWidth}"/><path d="M24 50l8 8M32 50l-8 8M44 50l8 8M52 50l-8 8" ${common} stroke-width="${Math.max(strokeWidth - 1, 2.5)}"/></svg>`;
         }
         if (type === 'fog') {
-          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 35H48a10 10 0 0 0 0-20h-3A16 16 0 0 0 16 22a9 9 0 0 0 4 13Z" ${common} stroke-width="5"/><path d="M14 46h36M20 55h36" ${common} stroke-width="5"/></svg>`;
+          return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 35H48a10 10 0 0 0 0-20h-3A16 16 0 0 0 16 22a9 9 0 0 0 4 13Z" ${common} stroke-width="${strokeWidth}"/><path d="M14 46h36M20 55h36" ${common} stroke-width="${strokeWidth}"/></svg>`;
         }
-        return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 44H48a12 12 0 0 0 0-24h-3A17 17 0 0 0 14 27a10 10 0 0 0 4 17Z" ${common} stroke-width="5"/></svg>`;
+        return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 44H48a12 12 0 0 0 0-24h-3A17 17 0 0 0 14 27a10 10 0 0 0 4 17Z" ${common} stroke-width="${heavyStrokeWidth}"/></svg>`;
       }
 
       function windSvg() {
@@ -838,6 +963,7 @@
           temperature_unit: 'celsius',
           wind_speed_unit: 'kmh',
           current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+          hourly: 'weather_code,cloud_cover,precipitation_probability,precipitation,rain,showers,is_day',
           daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
         });
         return `${CONFIG.weatherUrl}?${params.toString()}`;
@@ -861,10 +987,20 @@
         if (!root) return;
         const daily = data.daily || {};
         const sourceIndex = index + 1;
+        const isoDate = Array.isArray(daily.time) ? daily.time[sourceIndex] : '';
         const code = Array.isArray(daily.weather_code) ? daily.weather_code[sourceIndex] : undefined;
-        root.querySelector('.forecastDate').textContent = formatDateDM(Array.isArray(daily.time) ? daily.time[sourceIndex] : '');
-        root.querySelector('.forecastIcon').innerHTML = iconSvg(weatherIconType(code));
-        root.querySelector('.forecastDesc').textContent = weatherDescription(code);
+        const periods = ['AM', 'PM'].map((periodLabel) => {
+          const summary = summarizeForecastPeriod(data, isoDate, periodLabel, code);
+          return `
+            <div class="forecastPeriod">
+              <div class="forecastPeriodLabel">${periodLabel}</div>
+              <div class="forecastPeriodIcon weatherIcon">${iconSvg(summary.type, 3)}</div>
+              <div class="forecastPeriodText">${summary.label}</div>
+            </div>
+          `;
+        }).join('');
+        root.querySelector('.forecastDate').textContent = formatForecastDate(isoDate);
+        root.querySelector('.forecastPeriods').innerHTML = periods;
         root.querySelector('.tempMin').textContent = `${fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[sourceIndex] : undefined, 1)}°C`;
         root.querySelector('.tempMax').textContent = `${fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[sourceIndex] : undefined, 1)}°C`;
       }
