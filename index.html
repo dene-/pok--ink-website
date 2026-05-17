@@ -12,7 +12,7 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: #111;
+      background: #fff;
     }
 
     body {
@@ -31,7 +31,13 @@
   </style>
 </head>
 <body>
-  <img id="random-image" alt="Random Iceland landscape" />
+  <img
+    id="random-image"
+    src="./assets/photos/iceland-001.png"
+    alt="Random Iceland landscape"
+    fetchpriority="high"
+    decoding="sync"
+  />
 
   <script>
     const img = document.getElementById("random-image");
@@ -48,13 +54,24 @@
       return images.map((image) => image.src).filter(Boolean);
     }
 
+    function showImage(src) {
+      if (!src || img.getAttribute("src") === src) return;
+
+      const nextImage = new Image();
+      nextImage.decoding = "sync";
+      nextImage.onload = () => {
+        img.src = src;
+      };
+      nextImage.src = src;
+    }
+
     loadImages()
       .then((images) => {
         if (images.length === 0) {
           throw new Error("Photo manifest is empty");
         }
 
-        img.src = images[Math.floor(Math.random() * images.length)];
+        showImage(images[Math.floor(Math.random() * images.length)]);
       })
       .catch((error) => {
         console.error(error);
