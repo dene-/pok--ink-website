@@ -14,11 +14,11 @@ The dashboard continues using Open-Meteo. It adds hourly fields to the request a
 
 For each forecast date, derive:
 
-- `AM` from local hours 06:00 through 11:59.
-- `PM` from local hours 12:00 through 20:59.
-- A period summary prefers meaningful precipitation or storm signals over cloud cover.
-- Fog only wins when fog dominates that period.
-- If there is no strong weather signal, use average cloud cover to choose `Clear` or `Clouds`.
+- `AM` from local hourly entries 00:00 through 11:00, representing 00:00-11:59.
+- `PM` from local hourly entries 12:00 through 23:00, representing 12:00-23:59.
+- A period summary counts the normalized icon type for every hourly entry in the period and displays the type used most often.
+- Rain, showers, snow, storm, fog, cloud, and clear states do not receive severity priority; they win only by appearing most often in the period.
+- If two icon types appear equally often, the type seen first in that period wins so the result is deterministic without severity weighting.
 
 ## Layout Rules
 

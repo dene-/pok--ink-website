@@ -785,7 +785,7 @@
       }
 
       function periodHoursForLabel(label) {
-        return label === 'AM' ? { start: 6, end: 11 } : { start: 12, end: 20 };
+        return label === 'AM' ? { start: 0, end: 11 } : { start: 12, end: 23 };
       }
 
       function shortWeatherLabel(type) {
@@ -799,12 +799,6 @@
           snow: 'Snow'
         };
         return labels[type] || 'Clouds';
-      }
-
-      function average(values) {
-        const finite = values.map(Number).filter(Number.isFinite);
-        if (!finite.length) return 0;
-        return finite.reduce((sum, value) => sum + value, 0) / finite.length;
       }
 
       function summarizeForecastPeriod(data, isoDate, label, dailyCode) {
@@ -828,35 +822,20 @@
 
         if (!entries.length) return { type: fallbackType, label: shortWeatherLabel(fallbackType) };
 
-        const codeCounts = entries.reduce((counts, entry) => {
+        const summary = entries.reduce((acc, entry) => {
           const type = weatherPeriodType(hourly.weather_code && hourly.weather_code[entry.index]);
-          counts[type] = (counts[type] || 0) + 1;
-          return counts;
-        }, {});
-        const valuesFor = (name) => entries.map((entry) => hourly[name] && hourly[name][entry.index]);
-        const precipitationTotal = valuesFor('precipitation').concat(valuesFor('rain'), valuesFor('showers'))
-          .map(Number)
-          .filter(Number.isFinite)
-          .reduce((sum, value) => sum + value, 0);
-        const precipitationProbability = Math.max(0, ...valuesFor('precipitation_probability').map(Number).filter(Number.isFinite));
-        const cloudCover = average(valuesFor('cloud_cover'));
+          acc.counts[type] = (acc.counts[type] || 0) + 1;
+          if (!acc.firstSeen.includes(type)) acc.firstSeen.push(type);
+          return acc;
+        }, { counts: {}, firstSeen: [] });
 
-        let type = 'sun';
-        if ((codeCounts.storm || 0) >= 2) {
-          type = 'storm';
-        } else if ((codeCounts.snow || 0) >= 1) {
-          type = 'snow';
-        } else if ((codeCounts.showers || 0) >= 1 || (precipitationProbability >= 55 && precipitationTotal > 0)) {
-          type = 'showers';
-        } else if ((codeCounts.rain || 0) >= 1 || precipitationTotal >= 1) {
-          type = 'rain';
-        } else if ((codeCounts.fog || 0) >= Math.ceil(entries.length / 2)) {
-          type = 'fog';
-        } else if (cloudCover >= 35 || (codeCounts.cloud || 0) > (codeCounts.sun || 0)) {
-          type = 'cloud';
-        }
+        const type = summary.firstSeen.reduce((winner, type) => {
+          if (!winner) return type;
+          return summary.counts[type] > summary.counts[winner] ? type : winner;
+        }, '');
 
-        return { type, label: shortWeatherLabel(type) };
+        const selectedType = type || fallbackType;
+        return { type: selectedType, label: shortWeatherLabel(selectedType) };
       }
 
       function iconSvg(type, strokeWidth = 5) {

@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
+    "test": "node scripts/test-weather-periods.mjs",
     "update:weather": "node scripts/update-weather.mjs",
     "preprocess:photos": "node scripts/preprocess-photos.mjs"
   },

@@ -39,7 +39,7 @@ Expected: `weather.json` is regenerated with an `hourly` object and no script er
 
 ```js
 function periodHoursForLabel(label) {
-  return label === 'AM' ? { start: 6, end: 11 } : { start: 12, end: 20 };
+  return label === 'AM' ? { start: 0, end: 11 } : { start: 12, end: 23 };
 }
 
 function shortWeatherLabel(type) {
@@ -56,7 +56,7 @@ function shortWeatherLabel(type) {
 }
 ```
 
-- [x] Add a `summarizeForecastPeriod(data, isoDate, label, dailyCode)` helper that filters hourly entries by local date and hour, chooses `storm`, `showers`, `rain`, `snow`, `fog`, `cloud`, or `sun`, and falls back to `weatherIconType(dailyCode)`.
+- [x] Add a `summarizeForecastPeriod(data, isoDate, label, dailyCode)` helper that filters hourly entries by local date and hour, counts the normalized icon type for every included hour, chooses the type used most often, and falls back to `weatherIconType(dailyCode)`.
 
 ### Task 3: Render AM/PM Blocks
 
