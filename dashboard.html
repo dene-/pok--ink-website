@@ -10,28 +10,29 @@
     <meta name="referrer" content="no-referrer" />
     <title>E1002 weather dashboard</title>
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;500;700&display=swap");
+      @font-face {
+        font-family: "E1002 IBM VGA 8x16";
+        src: url("./assets/fonts/Web437_IBM_VGA_8x16.woff") format("woff");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
 
-      /*
-        Optional self-hosted font setup:
-        Put a WOFF2 monospace font in ./fonts/ and uncomment this block.
-
-        @font-face {
-          font-family: "DashMono";
-          src: url("./fonts/DashMono-Regular.woff2") format("woff2");
-          font-weight: 400 700;
-          font-style: normal;
-          font-display: swap;
-        }
-      */
+      @font-face {
+        font-family: "E1002 IBM EGA 8x8";
+        src: url("./assets/fonts/Web437_IBM_EGA_8x8.woff") format("woff");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
 
       :root {
         --ink: #000;
         --paper: #fff;
         --hot: #ff0000;
         --cold: #0000ff;
-        --font: "Space Mono", "Courier New", monospace;
-        /* Use "DashMono", "Roboto Mono", "Courier New", monospace if using the @font-face block above. */
+        --font: "E1002 IBM VGA 8x16", "Courier New", monospace;
+        --font-compact: "E1002 IBM EGA 8x8", "Courier New", monospace;
       }
 
       html,
@@ -49,9 +50,10 @@
         font-family: var(--font);
         font-variant-numeric: tabular-nums;
         font-feature-settings: "tnum" 1, "zero" 1;
-        text-rendering: geometricPrecision;
+        font-synthesis: none;
+        text-rendering: optimizeSpeed;
         -webkit-font-smoothing: none;
-        -moz-osx-font-smoothing: grayscale;
+        -moz-osx-font-smoothing: unset;
       }
 
       *,
@@ -131,9 +133,9 @@
       }
 
       .forecastDate {
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
         letter-spacing: 0;
         white-space: nowrap;
       }
@@ -170,9 +172,10 @@
       }
 
       .forecastPeriodLabel {
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1;
+        font-family: var(--font-compact);
+        font-size: 8px;
+        font-weight: 400;
+        line-height: 8px;
       }
 
       .forecastPeriodIcon {
@@ -186,9 +189,10 @@
 
       .forecastPeriodText {
         width: 100%;
-        font-size: 9px;
-        font-weight: 700;
-        line-height: 10px;
+        font-family: var(--font-compact);
+        font-size: 8px;
+        font-weight: 400;
+        line-height: 8px;
         text-align: center;
         white-space: nowrap;
         overflow: hidden;
@@ -196,13 +200,13 @@
       }
 
       .currentIcon {
-        width: 38px;
-        height: 38px;
+        width: 32px;
+        height: 32px;
       }
 
       .windIcon {
-        width: 38px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         justify-self: center;
         color: var(--cold);
       }
@@ -226,9 +230,10 @@
         align-items: baseline;
         justify-content: center;
         column-gap: 2px;
-        font-size: 12px;
-        font-weight: 700;
-        line-height: 1;
+        font-family: var(--font-compact);
+        font-size: 8px;
+        font-weight: 400;
+        line-height: 8px;
         white-space: nowrap;
         letter-spacing: 0;
       }
@@ -245,13 +250,13 @@
 
       .currentPanel {
         display: grid;
-        grid-template-rows: 31px 56px 1fr;
+        grid-template-rows: 32px 56px 1fr;
         padding: 5px 8px 6px;
       }
 
       .dateStack {
         display: grid;
-        grid-template-rows: 16px 15px;
+        grid-template-rows: 16px 16px;
         align-items: center;
         justify-items: center;
         min-width: 0;
@@ -260,14 +265,14 @@
 
       #todayDate {
         font-size: 16px;
-        font-weight: 700;
-        line-height: 1;
+        font-weight: 400;
+        line-height: 16px;
       }
 
       #weekday {
-        font-size: 15px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
       }
 
       .currentTempRow {
@@ -280,23 +285,23 @@
       #currentTemp {
         align-self: end;
         justify-self: center;
-        font-size: 50px;
-        font-weight: 700;
-        line-height: 0.92;
-        letter-spacing: -0.08em;
+        font-size: 48px;
+        font-weight: 400;
+        line-height: 48px;
+        letter-spacing: 0;
         white-space: nowrap;
       }
 
       #currentUnit {
         justify-self: end;
-        font-size: 19px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
       }
 
       .currentConditionRow {
         display: grid;
-        grid-template-columns: 40px 1fr;
+        grid-template-columns: 34px 1fr;
         align-items: center;
         column-gap: 4px;
         min-width: 0;
@@ -304,9 +309,9 @@
 
       #currentDesc {
         min-width: 0;
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 14px;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
         text-align: center;
         overflow-wrap: anywhere;
       }
@@ -314,7 +319,7 @@
       .todayRangePanel {
         display: grid;
         grid-template-rows: 1fr 1fr;
-        row-gap: 3px;
+        row-gap: 1px;
         padding: 9px 8px 8px;
       }
 
@@ -328,23 +333,23 @@
       }
 
       .rangeLabel {
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 400;
-        line-height: 1;
+        line-height: 16px;
       }
 
       .rangeValue {
         justify-self: end;
-        font-size: 27px;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.06em;
+        font-size: 32px;
+        font-weight: 400;
+        line-height: 32px;
+        letter-spacing: 0;
       }
 
       .rangeUnit {
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
       }
 
       .sensorPanel {
@@ -360,15 +365,15 @@
         align-items: baseline;
         column-gap: 2px;
         min-width: 0;
-        font-size: 12px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
         white-space: nowrap;
       }
 
       .statusRow .num {
         justify-self: end;
-        font-size: 13px;
+        font-size: 16px;
       }
 
       .statusRow span:nth-child(3) {
@@ -381,24 +386,24 @@
 
       .windCurrentPanel {
         display: grid;
-        grid-template-rows: 38px 46px 17px;
+        grid-template-rows: 34px 48px 16px;
         align-items: center;
         justify-items: center;
         padding: 3px 8px 4px;
       }
 
       #windSpeed {
-        font-size: 52px;
-        font-weight: 700;
-        line-height: 0.92;
-        letter-spacing: -0.08em;
+        font-size: 48px;
+        font-weight: 400;
+        line-height: 48px;
+        letter-spacing: 0;
         white-space: nowrap;
       }
 
       .windUnit {
-        font-size: 15px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
         white-space: nowrap;
       }
 
@@ -411,17 +416,17 @@
       }
 
       .windMaxLabel {
-        font-size: 15px;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
       }
 
       #windMax {
         justify-self: end;
-        font-size: 34px;
+        font-size: 32px;
         font-weight: 400;
-        line-height: 1;
-        letter-spacing: -0.07em;
+        line-height: 32px;
+        letter-spacing: 0;
         white-space: nowrap;
       }
 
@@ -434,9 +439,9 @@
       }
 
       #windDirection {
-        font-size: 15px;
-        font-weight: 700;
-        line-height: 18px;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
         overflow-wrap: anywhere;
       }
 
@@ -451,9 +456,10 @@
         overflow: hidden;
         background: var(--paper);
         color: var(--ink);
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1;
+        font-family: var(--font-compact);
+        font-size: 8px;
+        font-weight: 400;
+        line-height: 8px;
         white-space: nowrap;
       }
     </style>
@@ -534,15 +540,15 @@
 
         <section class="panel sensorPanel" aria-label="Device sensors">
           <div class="statusRow">
-            <span>Battery:</span><span id="battery" class="num">--</span
+            <span>Batt</span><span id="battery" class="num">--</span
             ><span>%</span>
           </div>
           <div class="statusRow">
-            <span>In Temp:</span><span id="insideTemp" class="num">--.-</span
+            <span>InTemp</span><span id="insideTemp" class="num">--.-</span
             ><span>°C</span>
           </div>
           <div class="statusRow">
-            <span>Humidity:</span
+            <span>Humid</span
             ><span id="insideHumidity" class="num">--.-</span><span>%</span>
           </div>
         </section>

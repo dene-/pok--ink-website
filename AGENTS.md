@@ -97,6 +97,11 @@ Important constraints:
   pages should use `overflow: hidden` and fit exactly into 800 by 480.
 - Avoid viewport-scaled font sizes. Use stable pixel sizes that have been checked
   at 800 by 480.
+- For text-heavy E1002 screens, prefer the self-hosted bitmap-derived terminal
+  fonts in `assets/fonts/`. Use the 8x16 font at 16 px, 32 px, or 48 px and the
+  8x8 compact font at 8 px or 16 px so glyphs stay aligned to the pixel grid.
+  Avoid synthetic bold, negative letter spacing, and antialias-dependent gray
+  edge pixels for primary text.
 - Do not use UI text that explains how the page works. The device should show
   the actual information or image, not instructions.
 
