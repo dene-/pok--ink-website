@@ -1,13 +1,14 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node scripts/test-weather-periods.mjs",
+    "test": "node scripts/test-weather-periods.mjs && node --test scripts/test-preprocess-photos.mjs",
     "update:weather": "node scripts/update-weather.mjs",
     "preprocess:photos": "node scripts/preprocess-photos.mjs"
   },
   "dependencies": {
     "canvas": "^3.2.3",
     "epdoptimize": "^1.0.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "smartcrop": "^2.0.5"
   }
 }
