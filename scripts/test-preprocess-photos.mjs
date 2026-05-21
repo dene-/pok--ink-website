@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  ERROR_DIFFUSION_MATRIX,
   cleanOutputDirectory,
   createImageId,
   normalizeSourceImages
@@ -63,4 +64,8 @@ test('index photo count matches the new image batch size', async () => {
 
   assert.ok(photoCountMatch, 'index.html should define PHOTO_COUNT');
   assert.equal(Number(photoCountMatch[1]), sourceImages.length);
+});
+
+test('photo preprocessor uses Atkinson error diffusion', async () => {
+  assert.equal(ERROR_DIFFUSION_MATRIX, 'atkinson');
 });

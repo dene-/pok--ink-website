@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   TARGET_HEIGHT,
   TARGET_WIDTH,
+  ERROR_DIFFUSION_MATRIX,
   cleanOutputDirectory,
   normalizeSourceImages,
   processImage,
@@ -79,6 +80,7 @@ await writeFile(
       target_width: TARGET_WIDTH,
       target_height: TARGET_HEIGHT,
       crop: 'smartcrop',
+      error_diffusion_matrix: ERROR_DIFFUSION_MATRIX,
       resize_kernel: 'lanczos3',
       cleaned_output_dir: shouldClean,
       images: processed,

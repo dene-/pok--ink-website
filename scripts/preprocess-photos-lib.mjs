@@ -13,6 +13,7 @@ import smartcrop from 'smartcrop';
 export const TARGET_WIDTH = 800;
 export const TARGET_HEIGHT = 480;
 export const FETCH_TIMEOUT_MS = 30000;
+export const ERROR_DIFFUSION_MATRIX = 'atkinson';
 
 const PALETTE_HEX = new Set(
   aitjcizeSpectra6Palette.map((entry) => entry.deviceColor.toLowerCase())
@@ -166,7 +167,7 @@ export async function ditherToSpectra6({ buffer, width, height }, outputPath) {
     palette: aitjcizeSpectra6Palette,
     processingPreset: 'balanced',
     ditheringType: 'errorDiffusion',
-    errorDiffusionMatrix: 'floydSteinberg',
+    errorDiffusionMatrix: ERROR_DIFFUSION_MATRIX,
     serpentine: true,
     colorMatching: 'lab'
   });
