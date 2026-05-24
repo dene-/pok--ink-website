@@ -1,7 +1,7 @@
 {
   "latitude": 41.375,
   "longitude": 2.0625,
-  "generationtime_ms": 8.823990821838379,
+  "generationtime_ms": 133.20839405059814,
   "utc_offset_seconds": 7200,
   "timezone": "Europe/Madrid",
   "timezone_abbreviation": "GMT+2",
@@ -17,13 +17,13 @@
     "is_day": ""
   },
   "current": {
-    "time": "2026-05-24T19:15",
+    "time": "2026-05-24T20:30",
     "interval": 900,
-    "temperature_2m": 26.3,
-    "relative_humidity_2m": 43,
+    "temperature_2m": 25,
+    "relative_humidity_2m": 52,
     "weather_code": 0,
-    "wind_speed_10m": 5.7,
-    "wind_direction_10m": 145,
+    "wind_speed_10m": 3.3,
+    "wind_direction_10m": 131,
     "is_day": 1
   },
   "hourly_units": {
@@ -217,7 +217,7 @@
       0,
       0,
       0,
-      1,
+      0,
       0,
       0,
       0,
@@ -359,12 +359,12 @@
       0,
       0,
       0,
-      0,
-      0,
-      0,
-      0,
-      0,
+      2,
       1,
+      1,
+      1,
+      0,
+      0,
       0,
       0,
       0,
@@ -1224,7 +1224,7 @@
     ],
     "weather_code": [
       0,
-      1,
+      0,
       0,
       0,
       3,
@@ -1232,7 +1232,7 @@
     ],
     "temperature_2m_max": [
       28.6,
-      27.3,
+      26.8,
       29.1,
       29.4,
       32.5,
@@ -1240,7 +1240,7 @@
     ],
     "temperature_2m_min": [
       16.5,
-      17.5,
+      17.6,
       16.4,
       16.2,
       18.9,
@@ -1248,13 +1248,13 @@
     ],
     "wind_speed_10m_max": [
       11.1,
-      14.1,
+      13.2,
       12.6,
       12.2,
       11.4,
       12.6
     ]
   },
-  "generated_at": "2026-05-24T17:27:01.174Z",
+  "generated_at": "2026-05-24T18:30:41.548Z",
   "source_url": "https://api.open-meteo.com/v1/forecast?latitude=41.3474&longitude=2.0431&timezone=Europe%2FMadrid&forecast_days=6&timeformat=iso8601&temperature_unit=celsius&wind_speed_unit=kmh&current=temperature_2m%2Crelative_humidity_2m%2Cweather_code%2Cwind_speed_10m%2Cwind_direction_10m%2Cis_day&hourly=weather_code%2Ccloud_cover%2Cprecipitation_probability%2Cprecipitation%2Crain%2Cshowers%2Cis_day&daily=weather_code%2Ctemperature_2m_max%2Ctemperature_2m_min%2Cwind_speed_10m_max"
 }
