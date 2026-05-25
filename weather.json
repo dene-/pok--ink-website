@@ -1,7 +1,7 @@
 {
   "latitude": 41.375,
   "longitude": 2.0625,
-  "generationtime_ms": 0.33342838287353516,
+  "generationtime_ms": 0.5222558975219727,
   "utc_offset_seconds": 7200,
   "timezone": "Europe/Madrid",
   "timezone_abbreviation": "GMT+2",
@@ -17,13 +17,13 @@
     "is_day": ""
   },
   "current": {
-    "time": "2026-05-25T13:15",
+    "time": "2026-05-25T15:15",
     "interval": 900,
-    "temperature_2m": 27.3,
+    "temperature_2m": 26.9,
     "relative_humidity_2m": 44,
     "weather_code": 0,
-    "wind_speed_10m": 11.5,
-    "wind_direction_10m": 104,
+    "wind_speed_10m": 12.8,
+    "wind_direction_10m": 112,
     "is_day": 1
   },
   "hourly_units": {
@@ -351,6 +351,7 @@
       0,
       0,
       0,
+      4,
       0,
       0,
       0,
@@ -359,9 +360,8 @@
       0,
       0,
       0,
-      0,
-      35,
-      6,
+      10,
+      18,
       0,
       0,
       0,
@@ -1231,8 +1231,8 @@
       3
     ],
     "temperature_2m_max": [
-      27.3,
-      29.3,
+      27.1,
+      29.2,
       29.5,
       33,
       32.3,
@@ -1240,21 +1240,21 @@
     ],
     "temperature_2m_min": [
       17.2,
-      16.5,
+      16.2,
       16.2,
       18.8,
       21.7,
       19.8
     ],
     "wind_speed_10m_max": [
-      12.5,
-      12.6,
+      12.8,
+      12,
       11.7,
       11.7,
       12.7,
       11.8
     ]
   },
-  "generated_at": "2026-05-25T11:29:41.348Z",
+  "generated_at": "2026-05-25T13:21:58.681Z",
   "source_url": "https://api.open-meteo.com/v1/forecast?latitude=41.3474&longitude=2.0431&timezone=Europe%2FMadrid&forecast_days=6&timeformat=iso8601&temperature_unit=celsius&wind_speed_unit=kmh&current=temperature_2m%2Crelative_humidity_2m%2Cweather_code%2Cwind_speed_10m%2Cwind_direction_10m%2Cis_day&hourly=weather_code%2Ccloud_cover%2Cprecipitation_probability%2Cprecipitation%2Crain%2Cshowers%2Cis_day&daily=weather_code%2Ctemperature_2m_max%2Ctemperature_2m_min%2Cwind_speed_10m_max"
 }
