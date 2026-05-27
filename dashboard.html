@@ -63,6 +63,15 @@
         border-radius: 0 !important;
       }
 
+      @supports (text-box-trim: trim-both) and (text-box-edge: cap alphabetic) {
+        *,
+        *::before,
+        *::after {
+          text-box-trim: trim-both;
+          text-box-edge: cap alphabetic;
+        }
+      }
+
       /*
         Pixel map:
         outer border: 1 px via #screen padding
@@ -98,7 +107,7 @@
 
       .rightColumn {
         display: grid;
-        grid-template-rows: 131px 83px 63px 105px 49px 42px;
+        grid-template-rows: 136px 83px 63px 80px 42px 34px 34px;
         gap: 1px;
       }
 
@@ -187,6 +196,11 @@
         vector-effect: none;
       }
 
+      .currentIcon svg *,
+      .windIcon svg * {
+        vector-effect: none;
+      }
+
       .forecastPeriodText {
         width: 100%;
         font-family: var(--font-compact);
@@ -205,8 +219,8 @@
       }
 
       .windIcon {
-        width: 34px;
-        height: 34px;
+        width: 26px;
+        height: 26px;
         justify-self: center;
         color: var(--cold);
       }
@@ -250,7 +264,7 @@
 
       .currentPanel {
         display: grid;
-        grid-template-rows: 32px 56px 1fr;
+        grid-template-rows: 32px 64px 1fr;
         padding: 5px 8px 6px;
       }
 
@@ -277,22 +291,23 @@
 
       .currentTempRow {
         display: grid;
-        grid-template-columns: 1fr 10px;
-        align-items: start;
+        grid-template-columns: 1fr 12px;
+        align-items: center;
         min-width: 0;
       }
 
       #currentTemp {
-        align-self: end;
+        align-self: center;
         justify-self: center;
-        font-size: 48px;
+        font-size: 56px;
         font-weight: 400;
-        line-height: 48px;
+        line-height: 56px;
         letter-spacing: 0;
         white-space: nowrap;
       }
 
       #currentUnit {
+        align-self: start;
         justify-self: end;
         font-size: 16px;
         font-weight: 400;
@@ -319,14 +334,15 @@
       .todayRangePanel {
         display: grid;
         grid-template-rows: 1fr 1fr;
+        align-items: center;
         row-gap: 1px;
-        padding: 9px 8px 8px;
+        padding: 6px 8px;
       }
 
       .rangeRow {
         display: grid;
         grid-template-columns: 40px 1fr 28px;
-        align-items: baseline;
+        align-items: center;
         column-gap: 2px;
         min-width: 0;
         white-space: nowrap;
@@ -386,16 +402,16 @@
 
       .windCurrentPanel {
         display: grid;
-        grid-template-rows: 34px 48px 16px;
+        grid-template-rows: 26px 32px 16px;
         align-items: center;
         justify-items: center;
-        padding: 3px 8px 4px;
+        padding: 4px 8px 3px;
       }
 
       #windSpeed {
-        font-size: 48px;
+        font-size: 32px;
         font-weight: 400;
-        line-height: 48px;
+        line-height: 32px;
         letter-spacing: 0;
         white-space: nowrap;
       }
@@ -412,7 +428,7 @@
         grid-template-columns: 44px 1fr;
         align-items: center;
         column-gap: 4px;
-        padding: 5px 13px;
+        padding: 2px 13px;
       }
 
       .windMaxLabel {
@@ -443,6 +459,31 @@
         font-weight: 400;
         line-height: 16px;
         overflow-wrap: anywhere;
+      }
+
+      .weatherUpdatePanel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 2px 8px 3px;
+        text-align: center;
+      }
+
+      .weatherUpdateLabel {
+        font-family: var(--font-compact);
+        font-size: 8px;
+        font-weight: 400;
+        line-height: normal;
+        white-space: nowrap;
+      }
+
+      #weatherUpdateTime {
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
+        white-space: nowrap;
       }
 
       #errorText {
@@ -566,6 +607,14 @@
 
         <section class="panel windDirectionPanel" aria-label="Wind direction">
           <div id="windDirection">-- Wind</div>
+        </section>
+
+        <section
+          class="panel weatherUpdatePanel"
+          aria-label="Last weather update"
+        >
+          <div class="weatherUpdateLabel">Updated</div>
+          <div id="weatherUpdateTime">--:--</div>
         </section>
       </aside>
     </div>
@@ -733,6 +782,21 @@
         return `${weekday} ${day}/${month}`;
       }
 
+      function formatWeatherUpdateTime(value) {
+        if (!value) return '--:--';
+        const text = String(value);
+        const localMatch = text.match(/^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})(?::\d{2})?$/);
+        if (localMatch) return localMatch[1];
+        const date = new Date(text);
+        if (Number.isNaN(date.getTime())) return '--:--';
+        return new Intl.DateTimeFormat(CONFIG.locale, {
+          timeZone: CONFIG.timezone,
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23'
+        }).format(date);
+      }
+
       function weatherDescription(code) {
         const map = {
           0: 'Clear',
@@ -867,7 +931,7 @@
 
       function windSvg() {
         const common = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
-        return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M7 24h35a9 9 0 1 0-8-13" ${common} stroke-width="5"/><path d="M7 36h45a8 8 0 1 1-7 12" ${common} stroke-width="5"/><path d="M7 48h25" ${common} stroke-width="5"/></svg>`;
+        return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M7 24h35a9 9 0 1 0-8-13" ${common} stroke-width="3"/><path d="M7 36h45a8 8 0 1 1-7 12" ${common} stroke-width="3"/><path d="M7 48h25" ${common} stroke-width="3"/></svg>`;
       }
 
       function windDirection(deg) {
@@ -1002,7 +1066,7 @@
 
         setText('currentTemp', fixed(current.temperature_2m, 1));
         setText('currentDesc', weatherDescription(current.weather_code));
-        setHTML('currentIcon', iconSvg(weatherIconType(current.weather_code)));
+        setHTML('currentIcon', iconSvg(weatherIconType(current.weather_code), 3));
 
         setText('todayMax', fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined, 1));
         setText('todayMin', fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined, 1));
@@ -1012,6 +1076,7 @@
         setText('windSpeed', fixed(current.wind_speed_10m, 1));
         setText('windMax', fixed(Array.isArray(daily.wind_speed_10m_max) ? daily.wind_speed_10m_max[0] : undefined, 1));
         setText('windDirection', windDirection(current.wind_direction_10m));
+        setText('weatherUpdateTime', formatWeatherUpdateTime(current.time));
 
         weatherHasData = true;
       }
