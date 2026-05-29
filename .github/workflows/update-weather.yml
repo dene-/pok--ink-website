@@ -27,18 +27,35 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Generate weather.json
-        run: node scripts/update-weather.mjs
-
-      - name: Commit updated weather
+      - name: Restore generated weather history
         run: |
-          if git diff --quiet -- weather.json; then
-            echo "weather.json unchanged"
-            exit 0
+          if git fetch origin weather-data:refs/remotes/origin/weather-data; then
+            git show origin/weather-data:weather-bias-history.json > "$RUNNER_TEMP/weather-bias-history.json" || rm -f "$RUNNER_TEMP/weather-bias-history.json"
           fi
 
+      - name: Generate weather data
+        env:
+          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
+          WEATHER_HISTORY_PATH: ${{ runner.temp }}/weather-bias-history.json
+        run: node scripts/update-weather.mjs
+
+      - name: Publish generated weather branch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
+        run: |
+          rm -rf "$RUNNER_TEMP/weather-data-branch"
+          mkdir -p "$RUNNER_TEMP/weather-data-branch"
+          cp "$WEATHER_OUTPUT_DIR"/weather.json "$RUNNER_TEMP/weather-data-branch/weather.json"
+          cp "$WEATHER_OUTPUT_DIR"/weather-bias.json "$RUNNER_TEMP/weather-data-branch/weather-bias.json"
+          cp "$WEATHER_OUTPUT_DIR"/weather-bias-history.json "$RUNNER_TEMP/weather-data-branch/weather-bias-history.json"
+
+          cd "$RUNNER_TEMP/weather-data-branch"
+          git init
+          git checkout -b weather-data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add weather.json
-          git commit -m "chore: update weather data"
-          git push
+          git add weather.json weather-bias.json weather-bias-history.json
+          git commit -m "chore: update generated weather data"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin HEAD:weather-data

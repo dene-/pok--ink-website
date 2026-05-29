@@ -12,7 +12,7 @@ assert.ok(scriptMatch, 'dashboard module script exists');
 
 const dashboardScript = scriptMatch[1].replace(
   /\s+await init\(\);\s*$/,
-  '\nObject.assign(globalThis.__hooks, { periodHoursForLabel, summarizeForecastPeriod });'
+  '\nObject.assign(globalThis.__hooks, { applyForecastBias, isUsableBiasModel, periodHoursForLabel, summarizeForecastPeriod });'
 );
 
 const context = {
@@ -25,7 +25,12 @@ context.globalThis.globalThis = context.globalThis;
 
 vm.runInNewContext(dashboardScript, context);
 
-const { periodHoursForLabel, summarizeForecastPeriod } = context.globalThis.__hooks;
+const {
+  applyForecastBias,
+  isUsableBiasModel,
+  periodHoursForLabel,
+  summarizeForecastPeriod
+} = context.globalThis.__hooks;
 
 function assertJsonEqual(actual, expected, message) {
   assert.equal(JSON.stringify(actual), JSON.stringify(expected), message);
@@ -107,14 +112,107 @@ const hourlyWeather = {
 
 assertJsonEqual(
   summarizeForecastPeriod(hourlyWeather, '2026-05-20', 'AM', 61),
-  { type: 'cloud', label: 'Clouds' },
+  {
+    type: 'cloud',
+    label: 'Clouds',
+    wet: false,
+    precipitationTotalMm: 0,
+    maxPrecipitationProbability: 0
+  },
   'AM uses the majority icon across the full AM period'
 );
 
 assertJsonEqual(
   summarizeForecastPeriod(hourlyWeather, '2026-05-20', 'PM', 61),
-  { type: 'sun', label: 'Clear' },
+  {
+    type: 'sun',
+    label: 'Clear',
+    wet: false,
+    precipitationTotalMm: 0,
+    maxPrecipitationProbability: 0
+  },
   'PM uses the majority icon across the full PM period'
+);
+
+const unsupportedRain = {
+  hourly: {
+    time: hourlyWeather.hourly.time,
+    weather_code: Array.from({ length: 24 }, () => 61),
+    cloud_cover: Array.from({ length: 24 }, () => 80),
+    precipitation_probability: Array.from({ length: 24 }, () => 0),
+    precipitation: Array.from({ length: 24 }, () => 0),
+    rain: Array.from({ length: 24 }, () => 0),
+    showers: Array.from({ length: 24 }, () => 0)
+  }
+};
+
+assertJsonEqual(
+  summarizeForecastPeriod(unsupportedRain, '2026-05-20', 'AM', 61),
+  {
+    type: 'cloud',
+    label: 'Clouds',
+    wet: false,
+    precipitationTotalMm: 0,
+    maxPrecipitationProbability: 0
+  },
+  'Forecast rain without precipitation support downgrades to a dry cloud period'
+);
+
+assert.equal(
+  isUsableBiasModel({
+    schemaVersion: 1,
+    generated_at: '2026-05-20T06:00:00.000Z',
+    maxAgeHours: 36,
+    location: { latitude: 41.3474, longitude: 2.0431, timezone: 'Europe/Madrid' },
+    adjustments: {}
+  }, new Date('2026-05-20T18:00:00.000Z')),
+  true,
+  'Fresh matching bias model is usable'
+);
+
+assert.equal(
+  isUsableBiasModel({
+    schemaVersion: 1,
+    generated_at: '2026-05-18T06:00:00.000Z',
+    maxAgeHours: 36,
+    location: { latitude: 41.3474, longitude: 2.0431, timezone: 'Europe/Madrid' },
+    adjustments: {}
+  }, new Date('2026-05-20T18:00:00.000Z')),
+  false,
+  'Stale bias model is ignored'
+);
+
+assertJsonEqual(
+  applyForecastBias({
+    horizonDays: 1,
+    minC: 10,
+    maxC: 11,
+    periods: {
+      AM: { type: 'cloud', label: 'Clouds' },
+      PM: { type: 'rain', label: 'Rain' }
+    }
+  }, {
+    adjustments: {
+      1: {
+        minC: { applied: true, delta: 5 },
+        maxC: { applied: true, delta: -5 },
+        periods: {
+          AM: { overrides: { cloud: 'snow' } },
+          PM: { overrides: { rain: 'cloud' } }
+        }
+      }
+    }
+  }),
+  {
+    horizonDays: 1,
+    minC: 10,
+    maxC: 11,
+    periods: {
+      AM: { type: 'cloud', label: 'Clouds' },
+      PM: { type: 'cloud', label: 'Clouds' }
+    }
+  },
+  'Dashboard bias application shrinks inverted temperature corrections and guards warm snow'
 );
 
 console.log('weather period tests passed');

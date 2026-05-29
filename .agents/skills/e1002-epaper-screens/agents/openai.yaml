@@ -1,0 +1,4 @@
+interface:
+  display_name: "E1002 ePaper Screens"
+  short_description: "Build reliable 800x480 SenseCraft screens"
+  default_prompt: "Use $e1002-epaper-screens to update an 800x480 reTerminal E1002 page and verify the device constraints."

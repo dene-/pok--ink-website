@@ -631,16 +631,19 @@
         refreshMinutes: 30,
         debug: false,
 
-        // The weather API below is Open-Meteo and does not need a key.
+        generatedWeatherUrl: 'https://raw.githubusercontent.com/dene-/pok--ink-website/weather-data/weather.json',
+        generatedBiasUrl: 'https://raw.githubusercontent.com/dene-/pok--ink-website/weather-data/weather-bias.json',
         localWeatherUrl: './weather.json',
         weatherUrl: 'https://api.open-meteo.com/v1/forecast',
+        liveWeather: false,
         weatherFetch: {
           initialAttempts: 2,
           refreshAttempts: 1,
           timeoutMs: 15000,
           retryDelayMs: 1000,
-          cachePrefix: 'e1002.openmeteo.weather.v3',
-          cacheMaxAgeHours: 26
+          cachePrefix: 'e1002.generated.weather.v4',
+          cacheMaxAgeHours: 48,
+          biasMaxAgeHours: 36
         },
 
         // Enabled by default. The request is only made when the iframe URL includes
@@ -666,6 +669,9 @@
       let weatherHasData = false;
       let weatherSource = 'none';
       let deviceHasData = false;
+
+      const DRY_PERIOD_TYPES = new Set(['sun', 'cloud', 'fog']);
+      const WET_PERIOD_TYPES = new Set(['showers', 'rain', 'snow', 'storm']);
 
       function queryParamsFromSearchAndHash() {
         const params = new URLSearchParams(window.location.search);
@@ -712,8 +718,17 @@
         const localWeatherUrl = firstParam(params, ['localWeatherUrl', 'localWeather', 'weatherJson']);
         if (localWeatherUrl) CONFIG.localWeatherUrl = localWeatherUrl;
 
+        const generatedWeatherUrl = firstParam(params, ['generatedWeatherUrl', 'generatedWeather', 'weatherDataUrl']);
+        if (generatedWeatherUrl) CONFIG.generatedWeatherUrl = generatedWeatherUrl;
+
+        const generatedBiasUrl = firstParam(params, ['generatedBiasUrl', 'weatherBiasUrl', 'biasUrl']);
+        if (generatedBiasUrl) CONFIG.generatedBiasUrl = generatedBiasUrl;
+
         const weatherUrl = firstParam(params, ['weatherUrl', 'weatherApi']);
         if (weatherUrl) CONFIG.weatherUrl = weatherUrl;
+
+        const liveWeather = firstParam(params, ['liveWeather', 'openMeteo', 'remoteWeather']);
+        if (['1', 'true', 'on', 'yes'].includes(liveWeather.toLowerCase())) CONFIG.liveWeather = true;
 
         const sensors = firstParam(params, ['sensors', 'deviceSensors']);
         if (['0', 'false', 'off', 'no'].includes(sensors.toLowerCase())) CONFIG.device.enabled = false;
@@ -871,12 +886,45 @@
         return labels[type] || 'Clouds';
       }
 
+      function roundNumber(value, decimals = 1) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return null;
+        const factor = 10 ** decimals;
+        return Math.round(n * factor) / factor;
+      }
+
+      function numberAt(array, index) {
+        if (!Array.isArray(array)) return null;
+        const n = Number(array[index]);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function winningPeriodType(counts, firstSeen, allowedTypes = null) {
+        return firstSeen.reduce((winner, type) => {
+          if (allowedTypes && !allowedTypes.has(type)) return winner;
+          if (!winner) return type;
+          return counts[type] > counts[winner] ? type : winner;
+        }, '');
+      }
+
+      function dryFallbackPeriodType(counts, firstSeen, fallbackType) {
+        const dryWinner = winningPeriodType(counts, firstSeen, DRY_PERIOD_TYPES);
+        if (dryWinner) return dryWinner;
+        return DRY_PERIOD_TYPES.has(fallbackType) ? fallbackType : 'cloud';
+      }
+
       function summarizeForecastPeriod(data, isoDate, label, dailyCode) {
         const fallbackType = weatherPeriodType(dailyCode);
         const hourly = data.hourly || {};
         const times = Array.isArray(hourly.time) ? hourly.time : [];
         if (!isoDate || !times.length) {
-          return { type: fallbackType, label: shortWeatherLabel(fallbackType) };
+          return {
+            type: fallbackType,
+            label: shortWeatherLabel(fallbackType),
+            wet: false,
+            precipitationTotalMm: 0,
+            maxPrecipitationProbability: 0
+          };
         }
 
         const hours = periodHoursForLabel(label);
@@ -890,22 +938,123 @@
           && entry.hour <= hours.end
         ));
 
-        if (!entries.length) return { type: fallbackType, label: shortWeatherLabel(fallbackType) };
+        if (!entries.length) {
+          return {
+            type: fallbackType,
+            label: shortWeatherLabel(fallbackType),
+            wet: false,
+            precipitationTotalMm: 0,
+            maxPrecipitationProbability: 0
+          };
+        }
 
         const summary = entries.reduce((acc, entry) => {
-          const type = weatherPeriodType(hourly.weather_code && hourly.weather_code[entry.index]);
+          const type = weatherPeriodType(numberAt(hourly.weather_code, entry.index));
+          const precipitation = numberAt(hourly.precipitation, entry.index)
+            ?? ((numberAt(hourly.rain, entry.index) || 0) + (numberAt(hourly.showers, entry.index) || 0));
+          const probability = numberAt(hourly.precipitation_probability, entry.index) || 0;
           acc.counts[type] = (acc.counts[type] || 0) + 1;
           if (!acc.firstSeen.includes(type)) acc.firstSeen.push(type);
+          acc.precipitationTotalMm += precipitation || 0;
+          acc.maxPrecipitationProbability = Math.max(acc.maxPrecipitationProbability, probability);
           return acc;
-        }, { counts: {}, firstSeen: [] });
+        }, { counts: {}, firstSeen: [], precipitationTotalMm: 0, maxPrecipitationProbability: 0 });
 
-        const type = summary.firstSeen.reduce((winner, type) => {
-          if (!winner) return type;
-          return summary.counts[type] > summary.counts[winner] ? type : winner;
-        }, '');
+        const rawType = winningPeriodType(summary.counts, summary.firstSeen) || fallbackType;
+        const wet = summary.maxPrecipitationProbability >= 35 || summary.precipitationTotalMm >= 0.5;
+        const selectedType = WET_PERIOD_TYPES.has(rawType) && !wet
+          ? dryFallbackPeriodType(summary.counts, summary.firstSeen, fallbackType)
+          : rawType;
 
-        const selectedType = type || fallbackType;
-        return { type: selectedType, label: shortWeatherLabel(selectedType) };
+        return {
+          type: selectedType,
+          label: shortWeatherLabel(selectedType),
+          wet,
+          precipitationTotalMm: roundNumber(summary.precipitationTotalMm, 2),
+          maxPrecipitationProbability: roundNumber(summary.maxPrecipitationProbability, 1)
+        };
+      }
+
+      function locationsMatch(actual) {
+        if (!actual) return false;
+        const latOk = Math.abs(Number(actual.latitude) - CONFIG.latitude) <= 0.01;
+        const lonOk = Math.abs(Number(actual.longitude) - CONFIG.longitude) <= 0.01;
+        return latOk && lonOk && String(actual.timezone) === String(CONFIG.timezone);
+      }
+
+      function isUsableBiasModel(model, now = new Date()) {
+        if (!model || typeof model !== 'object') return false;
+        if (Number(model.schemaVersion) !== 1) return false;
+        if (!locationsMatch(model.location)) return false;
+
+        const generatedAt = new Date(model.generated_at).getTime();
+        if (!Number.isFinite(generatedAt)) return false;
+
+        const maxAgeHours = Number(model.maxAgeHours || CONFIG.weatherFetch.biasMaxAgeHours);
+        return Number.isFinite(maxAgeHours)
+          && maxAgeHours > 0
+          && now.getTime() - generatedAt <= maxAgeHours * 60 * 60 * 1000;
+      }
+
+      function adjustedTemperaturePair(rawMin, rawMax, minAdjustment, maxAdjustment) {
+        const rawMinC = roundNumber(rawMin, 1);
+        const rawMaxC = roundNumber(rawMax, 1);
+        let minC = rawMinC;
+        let maxC = rawMaxC;
+
+        if (minAdjustment && minAdjustment.applied && Number.isFinite(Number(minAdjustment.delta))) {
+          minC = roundNumber(rawMinC + Number(minAdjustment.delta), 1);
+        }
+        if (maxAdjustment && maxAdjustment.applied && Number.isFinite(Number(maxAdjustment.delta))) {
+          maxC = roundNumber(rawMaxC + Number(maxAdjustment.delta), 1);
+        }
+        if (Number.isFinite(minC) && Number.isFinite(maxC) && minC > maxC) {
+          minC = rawMinC;
+          maxC = rawMaxC;
+        }
+
+        return { minC, maxC };
+      }
+
+      function snowImplausible(minC, maxC) {
+        return Number.isFinite(minC) && Number.isFinite(maxC) && minC > 2 && maxC > 3;
+      }
+
+      function applyForecastBias(forecastDay, model) {
+        const day = {
+          horizonDays: Number(forecastDay.horizonDays),
+          minC: roundNumber(forecastDay.minC, 1),
+          maxC: roundNumber(forecastDay.maxC, 1),
+          periods: {
+            AM: forecastDay.periods && forecastDay.periods.AM ? forecastDay.periods.AM : { type: 'cloud', label: 'Clouds' },
+            PM: forecastDay.periods && forecastDay.periods.PM ? forecastDay.periods.PM : { type: 'cloud', label: 'Clouds' }
+          }
+        };
+        const adjustment = model && model.adjustments
+          ? (model.adjustments[String(day.horizonDays)] || model.adjustments[day.horizonDays])
+          : null;
+        if (!adjustment) return day;
+
+        const temperatures = adjustedTemperaturePair(day.minC, day.maxC, adjustment.minC, adjustment.maxC);
+        const periods = {};
+        ['AM', 'PM'].forEach((periodLabel) => {
+          const rawType = day.periods[periodLabel].type || 'cloud';
+          let type = adjustment.periods
+            && adjustment.periods[periodLabel]
+            && adjustment.periods[periodLabel].overrides
+            && adjustment.periods[periodLabel].overrides[rawType]
+            ? adjustment.periods[periodLabel].overrides[rawType]
+            : rawType;
+          if (type === 'snow' && snowImplausible(temperatures.minC, temperatures.maxC)) type = 'cloud';
+          periods[periodLabel] = { type, label: shortWeatherLabel(type) };
+        });
+
+        return {
+          horizonDays: day.horizonDays,
+          minC: temperatures.minC,
+          maxC: temperatures.maxC,
+          periods
+        };
       }
 
       function iconSvg(type, strokeWidth = 5) {
@@ -1031,15 +1180,25 @@
         if (firstDay !== todayISOInTimezone()) throw new Error('stale weather.json');
       }
 
-      function updateForecastDay(index, data) {
+      function updateForecastDay(index, data, biasModel = null) {
         const root = $(`forecast${index}`);
         if (!root) return;
         const daily = data.daily || {};
         const sourceIndex = index + 1;
         const isoDate = Array.isArray(daily.time) ? daily.time[sourceIndex] : '';
         const code = Array.isArray(daily.weather_code) ? daily.weather_code[sourceIndex] : undefined;
+        const rawPeriods = {
+          AM: summarizeForecastPeriod(data, isoDate, 'AM', code),
+          PM: summarizeForecastPeriod(data, isoDate, 'PM', code)
+        };
+        const forecastDay = applyForecastBias({
+          horizonDays: sourceIndex,
+          minC: Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[sourceIndex] : undefined,
+          maxC: Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[sourceIndex] : undefined,
+          periods: rawPeriods
+        }, biasModel);
         const periods = ['AM', 'PM'].map((periodLabel) => {
-          const summary = summarizeForecastPeriod(data, isoDate, periodLabel, code);
+          const summary = forecastDay.periods[periodLabel];
           return `
             <div class="forecastPeriod">
               <div class="forecastPeriodLabel">${periodLabel}</div>
@@ -1050,11 +1209,11 @@
         }).join('');
         root.querySelector('.forecastDate').textContent = formatForecastDate(isoDate);
         root.querySelector('.forecastPeriods').innerHTML = periods;
-        root.querySelector('.tempMin').textContent = `${fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[sourceIndex] : undefined, 1)}°C`;
-        root.querySelector('.tempMax').textContent = `${fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[sourceIndex] : undefined, 1)}°C`;
+        root.querySelector('.tempMin').textContent = `${fixed(forecastDay.minC, 1)}°C`;
+        root.querySelector('.tempMax').textContent = `${fixed(forecastDay.maxC, 1)}°C`;
       }
 
-      function applyWeatherData(data) {
+      function applyWeatherData(data, biasModel = null) {
         validateWeatherData(data);
 
         const current = data.current || {};
@@ -1071,7 +1230,7 @@
         setText('todayMax', fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined, 1));
         setText('todayMin', fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined, 1));
 
-        for (let i = 0; i < 5; i += 1) updateForecastDay(i, data);
+        for (let i = 0; i < 5; i += 1) updateForecastDay(i, data, biasModel);
 
         setText('windSpeed', fixed(current.wind_speed_10m, 1));
         setText('windMax', fixed(Array.isArray(daily.wind_speed_10m_max) ? daily.wind_speed_10m_max[0] : undefined, 1));
@@ -1081,13 +1240,34 @@
         weatherHasData = true;
       }
 
+      async function fetchGeneratedWeather() {
+        const data = await fetchJsonWithRetry(CONFIG.generatedWeatherUrl, {
+          attempts: 1,
+          timeoutMs: CONFIG.weatherFetch.timeoutMs,
+          cache: 'no-cache'
+        });
+        validateFreshWeatherData(data);
+        weatherSource = 'generated';
+        return data;
+      }
+
+      async function fetchWeatherBias() {
+        const data = await fetchJsonWithRetry(CONFIG.generatedBiasUrl, {
+          attempts: 1,
+          timeoutMs: CONFIG.weatherFetch.timeoutMs,
+          cache: 'no-cache'
+        });
+        if (!isUsableBiasModel(data)) throw new Error('stale weather-bias.json');
+        return data;
+      }
+
       async function fetchLocalWeather() {
         const data = await fetchJsonWithRetry(CONFIG.localWeatherUrl, {
           attempts: 1,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
           cache: 'no-cache'
         });
-        validateFreshWeatherData(data);
+        validateWeatherData(data);
         weatherSource = 'local';
         return data;
       }
@@ -1111,12 +1291,13 @@
         ].join(':');
       }
 
-      function saveWeatherCache(data) {
+      function saveWeatherCache(data, biasModel = null) {
         try {
           window.localStorage.setItem(weatherCacheKey(), JSON.stringify({
             savedAt: Date.now(),
             today: todayISOInTimezone(),
-            data
+            data,
+            biasModel
           }));
         } catch (_error) {
           // localStorage may be blocked in some iframe/sandbox contexts. Ignore it.
@@ -1136,7 +1317,8 @@
 
           if (!isFreshEnough || (!isForToday && !startsToday)) return false;
 
-          applyWeatherData(cached.data);
+          const biasModel = isUsableBiasModel(cached.biasModel) ? cached.biasModel : null;
+          applyWeatherData(cached.data, biasModel);
           return true;
         } catch (_error) {
           return false;
@@ -1149,17 +1331,36 @@
 
         try {
           let data;
+          let biasModel = null;
           try {
-            data = await fetchLocalWeather();
-          } catch (localError) {
-            data = await fetchRemoteWeather(initial);
-            if (CONFIG.debug) showError(`Weather: ${weatherSource}; local ${localError.message}`);
+            data = await fetchGeneratedWeather();
+            try {
+              biasModel = await fetchWeatherBias();
+            } catch (biasError) {
+              if (CONFIG.debug) showError(`Bias: ${biasError.message}`);
+            }
+          } catch (generatedError) {
+            const cacheApplied = applyCachedWeather();
+            if (cacheApplied) {
+              weatherSource = 'cache';
+              if (CONFIG.debug) showError(`Weather: cache; generated ${generatedError.message}`);
+              return;
+            }
+
+            try {
+              data = await fetchLocalWeather();
+              if (CONFIG.debug) showError(`Weather: local; generated ${generatedError.message}`);
+            } catch (localError) {
+              if (!CONFIG.liveWeather) throw new Error(`generated ${generatedError.message}; local ${localError.message}`);
+              data = await fetchRemoteWeather(initial);
+              if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError.message}`);
+            }
           }
-          applyWeatherData(data);
-          saveWeatherCache(data);
+          applyWeatherData(data, biasModel);
+          if (weatherSource === 'generated') saveWeatherCache(data, biasModel);
           if (!CONFIG.debug) clearError();
         } catch (error) {
-          const cacheApplied = weatherHasData || applyCachedWeather();
+          const cacheApplied = weatherHasData;
           if (cacheApplied) weatherSource = 'cache';
           if (!cacheApplied || CONFIG.debug) showError(`Weather: ${weatherSource}; ${error.message}`);
         }
