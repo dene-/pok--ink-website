@@ -67,16 +67,9 @@ jobs:
 
       - name: Prepare Pages artifact
         env:
-          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
-        run: |
-          rm -rf "$RUNNER_TEMP/pages-site"
-          mkdir -p "$RUNNER_TEMP/pages-site"
-          rsync -a --delete \
-            --exclude '.git/' \
-            --exclude '.github/' \
-            --exclude 'node_modules/' \
-            ./ "$RUNNER_TEMP/pages-site/"
-          cp "$WEATHER_OUTPUT_DIR"/weather.json "$RUNNER_TEMP/pages-site/weather.json"
+          PAGES_OUTPUT_DIR: ${{ runner.temp }}/pages-site
+          WEATHER_PATH: ${{ runner.temp }}/weather-data/weather.json
+        run: node scripts/prepare-pages-site.mjs
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6

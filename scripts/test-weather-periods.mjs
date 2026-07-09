@@ -9,10 +9,15 @@ const dashboardHtml = await readFile(dashboardPath, 'utf8');
 const scriptMatch = dashboardHtml.match(/<script type="module">([\s\S]*?)<\/script>/);
 
 assert.ok(scriptMatch, 'dashboard module script exists');
+assert.match(
+  dashboardHtml,
+  /<script id="weatherBootstrap" type="application\/json"><\/script>/,
+  'dashboard exposes an empty artifact-time weather bootstrap slot'
+);
 
 const dashboardScript = scriptMatch[1].replace(
   /\s+await init\(\);\s*$/,
-  '\nObject.assign(globalThis.__hooks, { applyForecastBias, isUsableBiasModel, periodHoursForLabel, summarizeForecastPeriod, validateGeneratedWeatherData: typeof validateGeneratedWeatherData === "function" ? validateGeneratedWeatherData : null, fetchWeatherWithOptionalBias: typeof fetchWeatherWithOptionalBias === "function" ? fetchWeatherWithOptionalBias : null });'
+  '\nObject.assign(globalThis.__hooks, { applyForecastBias, isUsableBiasModel, periodHoursForLabel, summarizeForecastPeriod, validateGeneratedWeatherData: typeof validateGeneratedWeatherData === "function" ? validateGeneratedWeatherData : null, fetchWeatherWithOptionalBias: typeof fetchWeatherWithOptionalBias === "function" ? fetchWeatherWithOptionalBias : null, parseEmbeddedWeather: typeof parseEmbeddedWeather === "function" ? parseEmbeddedWeather : null });'
 );
 
 const context = {
@@ -31,7 +36,8 @@ const {
   periodHoursForLabel,
   summarizeForecastPeriod,
   validateGeneratedWeatherData,
-  fetchWeatherWithOptionalBias
+  fetchWeatherWithOptionalBias,
+  parseEmbeddedWeather
 } = context.globalThis.__hooks;
 
 function assertJsonEqual(actual, expected, message) {
@@ -202,6 +208,14 @@ assert.doesNotThrow(
   }, now),
   'recent generated weather remains usable after a missed overnight update'
 );
+
+assert.equal(typeof parseEmbeddedWeather, 'function', 'embedded weather parser exists');
+const embeddedWeather = parseEmbeddedWeather(JSON.stringify({
+  current: { temperature_2m: 18.5 },
+  daily: { time: Array.from({ length: 6 }, () => yesterdayIso) },
+  generated_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
+}), now);
+assert.equal(embeddedWeather.current.temperature_2m, 18.5, 'fresh embedded weather is available synchronously');
 
 const fetchStarts = [];
 const weatherWithBias = await fetchWeatherWithOptionalBias(

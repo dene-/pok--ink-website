@@ -14,7 +14,7 @@
 - Keep `weather-data` branch publication and bias-history restoration intact.
 - Do not commit generated weather to `main`.
 - Deploy on pushes to `main`, the existing hourly schedule, and manual dispatches.
-- Keep a fresh `weather.json` at the artifact root for the Dashboard's same-origin cold-start fallback.
+- Keep a fresh `weather.json` at the artifact root and embed the same snapshot into `dashboard.html` for synchronous cold-start rendering.
 
 ---
 
@@ -50,7 +50,7 @@ Expected: FAIL because the workflow still commits `weather.json` to `main` and d
 
 - [ ] **Step 1: Implement the minimal workflow**
 
-Add the `main` push trigger and `id-token: write`; remove the step that commits generated weather to `main`; stage the site with `rsync`; overwrite the staged `weather.json`; use `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, and a dependent deployment job using `actions/deploy-pages@v5` in the `github-pages` environment.
+Add the `main` push trigger and `id-token: write`; remove the step that commits generated weather to `main`; prepare the site with `scripts/prepare-pages-site.mjs`; overwrite the staged `weather.json` and embed the same snapshot into `dashboard.html`; use `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, and a dependent deployment job using `actions/deploy-pages@v5` in the `github-pages` environment.
 
 - [ ] **Step 2: Update domain documentation**
 

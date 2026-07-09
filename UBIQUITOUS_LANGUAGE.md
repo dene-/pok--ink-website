@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | **Generated weather** | The latest Open-Meteo forecast JSON produced by the GitHub Actions workflow and published to the `weather-data` branch. | Live weather, remote weather |
 | **Generated data branch** | The force-pushed `weather-data` branch that contains generated runtime JSON files. | Weather branch, data branch |
-| **Same-origin weather fallback** | The root `./weather.json` file placed into the GitHub Pages artifact by the weather workflow so cold Dashboard loads can render before cross-origin generated weather finishes, without committing generated updates to `main`. | Local weather, development fallback, sample weather |
+| **Same-origin weather fallback** | The current weather snapshot placed at root `./weather.json` and embedded into the Dashboard inside the GitHub Pages artifact, allowing synchronous cold-start rendering without generated commits on `main`. | Local weather, development fallback, sample weather |
 | **Weather cache** | Browser storage of previously loaded generated weather for temporary offline or failure fallback. | Cached local weather, stored forecast |
 | **Bias history** | The generated `weather-bias-history.json` state containing forecast snapshots and resolved actuals. | History JSON, training history |
 | **Bias model** | The generated `weather-bias.json` runtime model containing gated corrections and metrics. | Correction file, bias JSON |

@@ -18,8 +18,8 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.ok(artifactStep > generatedBranchStep, 'Pages artifact is prepared after generated data is published');
 
   const artifact = workflow.slice(artifactStep);
-  assert.match(artifact, /rsync -a --delete/);
-  assert.match(artifact, /cp "\$WEATHER_OUTPUT_DIR"\/weather\.json "\$RUNNER_TEMP\/pages-site\/weather\.json"/);
+  assert.match(artifact, /node scripts\/prepare-pages-site\.mjs/);
+  assert.doesNotMatch(artifact, /rsync -a/);
   assert.match(artifact, /uses: actions\/configure-pages@v6/);
   assert.match(artifact, /uses: actions\/upload-pages-artifact@v5/);
   assert.match(artifact, /path: \$\{\{ runner\.temp \}\}\/pages-site/);

@@ -619,6 +619,7 @@
       </aside>
     </div>
 
+    <script id="weatherBootstrap" type="application/json"></script>
     <script type="module">
       'use strict';
 
@@ -1192,6 +1193,17 @@
         if (firstDay !== todayISOInTimezone() && !isRecentEnough) throw new Error('stale generated weather.json');
       }
 
+      function parseEmbeddedWeather(text, now = new Date()) {
+        if (!String(text || '').trim()) return null;
+        try {
+          const data = JSON.parse(text);
+          validateGeneratedWeatherData(data, now);
+          return data;
+        } catch (_error) {
+          return null;
+        }
+      }
+
       function updateForecastDay(index, data, biasModel = null) {
         const root = $(`forecast${index}`);
         if (!root) return;
@@ -1351,7 +1363,16 @@
         }
       }
 
+      function applyEmbeddedWeather() {
+        const data = parseEmbeddedWeather($('weatherBootstrap')?.textContent);
+        if (!data) return false;
+        applyWeatherData(data);
+        weatherSource = 'embedded';
+        return true;
+      }
+
       async function applyInitialWeatherFallback() {
+        if (applyEmbeddedWeather()) return true;
         if (applyCachedWeather()) return true;
         try {
           const data = await fetchLocalWeather();
