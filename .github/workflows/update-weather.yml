@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: update-weather-data
@@ -38,6 +39,42 @@ jobs:
           WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
           WEATHER_HISTORY_PATH: ${{ runner.temp }}/weather-bias-history.json
         run: node scripts/update-weather.mjs
+
+      - name: Publish same-origin weather fallback
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
+        run: |
+          cp "$WEATHER_OUTPUT_DIR"/weather.json weather.json
+
+          if git diff --quiet -- weather.json; then
+            echo "Same-origin weather fallback is already current"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add weather.json
+          git commit -m "chore: refresh same-origin weather fallback"
+
+          pushed=false
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              pushed=true
+              break
+            fi
+
+            echo "Main changed while publishing; rebasing attempt $attempt"
+            git fetch origin main
+            git rebase origin/main
+          done
+
+          if [ "$pushed" != true ]; then
+            echo "Could not publish same-origin weather fallback"
+            exit 1
+          fi
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"
 
       - name: Publish generated weather branch
         env:

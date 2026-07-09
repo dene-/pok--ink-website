@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | **Generated weather** | The latest Open-Meteo forecast JSON produced by the GitHub Actions workflow and published to the `weather-data` branch. | Live weather, remote weather |
 | **Generated data branch** | The force-pushed `weather-data` branch that contains generated runtime JSON files. | Weather branch, data branch |
-| **Development weather fallback** | The root `./weather.json` file kept on `main` as a local/sample fallback when generated weather is unavailable. | Local weather, sample weather |
+| **Same-origin weather fallback** | The root `./weather.json` file refreshed on `main` by the weather workflow and deployed with the site so cold Dashboard loads can render before cross-origin generated weather finishes. | Local weather, development fallback, sample weather |
 | **Weather cache** | Browser storage of previously loaded generated weather for temporary offline or failure fallback. | Cached local weather, stored forecast |
 | **Bias history** | The generated `weather-bias-history.json` state containing forecast snapshots and resolved actuals. | History JSON, training history |
 | **Bias model** | The generated `weather-bias.json` runtime model containing gated corrections and metrics. | Correction file, bias JSON |
@@ -69,14 +69,14 @@
 - **Bias history** contains many **Forecast snapshots** keyed by location and timezone.
 - A **Bias model** is derived from **Bias history** and may apply zero or more **Temperature corrections** and **Icon corrections**.
 - **Generated weather**, **Bias history**, and **Bias model** are published together on the **Generated data branch**.
-- The **Dashboard** reads **Generated weather** first, then **Weather cache**, then **Development weather fallback**.
+- The **Dashboard** can render **Weather cache** or the **Same-origin weather fallback** during startup, then replace it with **Generated weather** when available.
 - **Lagged ensemble consensus** can use forecast data only, while **Forecast bias correction** requires **Actuals**.
 
 ## Example dialogue
 
 > **Dev:** "Should the **Dashboard** call the **Open-Meteo Forecast API** directly when **Generated weather** is missing?"
 >
-> **Domain expert:** "No. In production it should use the **Generated data branch**, then the **Weather cache**, then the **Development weather fallback**."
+> **Domain expert:** "No. In production it should use the **Generated data branch**, with the **Weather cache** and **Same-origin weather fallback** covering cold starts and source failures."
 >
 > **Dev:** "When can a **Temperature correction** affect the five-day row?"
 >
