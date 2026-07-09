@@ -1,6 +1,9 @@
 name: Update weather data
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: '0 * * * *'
@@ -8,6 +11,7 @@ on:
 permissions:
   contents: write
   pages: write
+  id-token: write
 
 concurrency:
   group: update-weather-data
@@ -40,42 +44,6 @@ jobs:
           WEATHER_HISTORY_PATH: ${{ runner.temp }}/weather-bias-history.json
         run: node scripts/update-weather.mjs
 
-      - name: Publish same-origin weather fallback
-        env:
-          GH_TOKEN: ${{ github.token }}
-          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
-        run: |
-          cp "$WEATHER_OUTPUT_DIR"/weather.json weather.json
-
-          if git diff --quiet -- weather.json; then
-            echo "Same-origin weather fallback is already current"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add weather.json
-          git commit -m "chore: refresh same-origin weather fallback"
-
-          pushed=false
-          for attempt in 1 2 3; do
-            if git push origin HEAD:main; then
-              pushed=true
-              break
-            fi
-
-            echo "Main changed while publishing; rebasing attempt $attempt"
-            git fetch origin main
-            git rebase origin/main
-          done
-
-          if [ "$pushed" != true ]; then
-            echo "Could not publish same-origin weather fallback"
-            exit 1
-          fi
-
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"
-
       - name: Publish generated weather branch
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -96,3 +64,39 @@ jobs:
           git commit -m "chore: update generated weather data"
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin HEAD:weather-data
+
+      - name: Prepare Pages artifact
+        env:
+          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
+        run: |
+          rm -rf "$RUNNER_TEMP/pages-site"
+          mkdir -p "$RUNNER_TEMP/pages-site"
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'node_modules/' \
+            ./ "$RUNNER_TEMP/pages-site/"
+          cp "$WEATHER_OUTPUT_DIR"/weather.json "$RUNNER_TEMP/pages-site/weather.json"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/pages-site
+
+  deploy-pages:
+    needs: update-weather
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

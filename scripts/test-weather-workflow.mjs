@@ -6,19 +6,27 @@ import test from 'node:test';
 
 const workflowPath = new URL('../.github/workflows/update-weather.yml', import.meta.url);
 
-test('weather workflow publishes a current same-origin dashboard fallback before generated data', async () => {
+test('weather workflow deploys a current same-origin fallback through a Pages artifact', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
-  const fallbackStep = workflow.indexOf('- name: Publish same-origin weather fallback');
+  const artifactStep = workflow.indexOf('- name: Prepare Pages artifact');
   const generatedBranchStep = workflow.indexOf('- name: Publish generated weather branch');
 
-  assert.ok(fallbackStep >= 0, 'same-origin fallback publishing step exists');
-  assert.ok(generatedBranchStep > fallbackStep, 'fallback is published before the generated-data branch');
-
-  const step = workflow.slice(fallbackStep, generatedBranchStep);
-  assert.match(step, /cp "\$WEATHER_OUTPUT_DIR"\/weather\.json weather\.json/);
-  assert.match(step, /git add weather\.json/);
-  assert.match(step, /git commit -m "chore: refresh same-origin weather fallback"/);
-  assert.match(step, /git push origin HEAD:main/);
+  assert.match(workflow, /push:\s*\n\s+branches:\s*\n\s+- main/);
   assert.match(workflow, /pages: write/);
-  assert.match(step, /gh api --method POST "repos\/\$\{GITHUB_REPOSITORY\}\/pages\/builds"/);
+  assert.match(workflow, /id-token: write/);
+  assert.ok(generatedBranchStep >= 0, 'generated-data branch publication remains configured');
+  assert.ok(artifactStep > generatedBranchStep, 'Pages artifact is prepared after generated data is published');
+
+  const artifact = workflow.slice(artifactStep);
+  assert.match(artifact, /rsync -a --delete/);
+  assert.match(artifact, /cp "\$WEATHER_OUTPUT_DIR"\/weather\.json "\$RUNNER_TEMP\/pages-site\/weather\.json"/);
+  assert.match(artifact, /uses: actions\/configure-pages@v6/);
+  assert.match(artifact, /uses: actions\/upload-pages-artifact@v5/);
+  assert.match(artifact, /path: \$\{\{ runner\.temp \}\}\/pages-site/);
+  assert.match(workflow, /deploy-pages:\s*\n\s+needs: update-weather/);
+  assert.match(workflow, /uses: actions\/deploy-pages@v5/);
+
+  assert.doesNotMatch(workflow, /^\s*git add weather\.json\s*$/m);
+  assert.doesNotMatch(workflow, /git push origin HEAD:main/);
+  assert.doesNotMatch(workflow, /repos\/\$\{GITHUB_REPOSITORY\}\/pages\/builds/);
 });

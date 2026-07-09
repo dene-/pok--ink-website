@@ -160,11 +160,12 @@ For `dashboard.html`:
   `weather-bias.json`, and `weather-bias-history.json`.
 - The production dashboard should prefer generated JSON from the `weather-data`
   branch, then cached generated weather, then the root `./weather.json`
-  same-origin fallback. The weather workflow refreshes that root fallback on
-  `main` and requests a GitHub Pages rebuild so cold device loads have useful
-  weather before cross-origin generated data finishes. It should not call
-  Open-Meteo directly unless an explicit debug/development URL option enables
-  live weather.
+  same-origin fallback. The weather workflow packages the site as a GitHub
+  Pages artifact and overwrites that artifact's root fallback with current
+  generated weather, without committing generated updates to `main`, so cold
+  device loads have useful weather before cross-origin generated data finishes.
+  It should not call Open-Meteo directly unless an explicit debug/development
+  URL option enables live weather.
 - `weather-bias.json` is optional runtime input. Missing, stale, invalid, or
   location-mismatched bias data must fail open to raw forecast display without a
   normal-mode visible error.
