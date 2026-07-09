@@ -1174,10 +1174,22 @@
         if (!Array.isArray(data.daily.time) || data.daily.time.length < 6) throw new Error('missing forecast dates');
       }
 
-      function validateFreshWeatherData(data) {
+      function validateFallbackWeatherData(data) {
         validateWeatherData(data);
         const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
-        if (firstDay !== todayISOInTimezone()) throw new Error('stale weather.json');
+        const generatedAt = new Date(data.generated_at).getTime();
+        const maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000;
+        const isRecentEnough = Number.isFinite(generatedAt) && Date.now() - generatedAt <= maxAgeMs;
+        if (firstDay !== todayISOInTimezone() && !isRecentEnough) throw new Error('stale fallback weather.json');
+      }
+
+      function validateGeneratedWeatherData(data, now = new Date()) {
+        validateWeatherData(data);
+        const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
+        const generatedAt = new Date(data.generated_at).getTime();
+        const maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000;
+        const isRecentEnough = Number.isFinite(generatedAt) && now.getTime() - generatedAt <= maxAgeMs;
+        if (firstDay !== todayISOInTimezone() && !isRecentEnough) throw new Error('stale generated weather.json');
       }
 
       function updateForecastDay(index, data, biasModel = null) {
@@ -1246,7 +1258,7 @@
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
           cache: 'no-cache'
         });
-        validateFreshWeatherData(data);
+        validateGeneratedWeatherData(data);
         weatherSource = 'generated';
         return data;
       }
@@ -1261,13 +1273,27 @@
         return data;
       }
 
+      async function fetchWeatherWithOptionalBias(fetchWeather, fetchBias) {
+        const [weatherResult, biasResult] = await Promise.allSettled([
+          fetchWeather(),
+          fetchBias()
+        ]);
+        if (weatherResult.status === 'rejected') throw weatherResult.reason;
+
+        return {
+          data: weatherResult.value,
+          biasModel: biasResult.status === 'fulfilled' ? biasResult.value : null,
+          biasError: biasResult.status === 'rejected' ? biasResult.reason : null
+        };
+      }
+
       async function fetchLocalWeather() {
         const data = await fetchJsonWithRetry(CONFIG.localWeatherUrl, {
           attempts: 1,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
           cache: 'no-cache'
         });
-        validateWeatherData(data);
+        validateFallbackWeatherData(data);
         weatherSource = 'local';
         return data;
       }
@@ -1312,15 +1338,27 @@
           const cached = JSON.parse(raw);
           const maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000;
           const isFreshEnough = Date.now() - Number(cached.savedAt || 0) <= maxAgeMs;
-          const isForToday = cached.today === todayISOInTimezone();
-          const startsToday = cached.data && cached.data.daily && Array.isArray(cached.data.daily.time) && cached.data.daily.time[0] === todayISOInTimezone();
+          const hasWeatherData = cached.data && cached.data.daily && Array.isArray(cached.data.daily.time);
 
-          if (!isFreshEnough || (!isForToday && !startsToday)) return false;
+          if (!isFreshEnough || !hasWeatherData) return false;
 
           const biasModel = isUsableBiasModel(cached.biasModel) ? cached.biasModel : null;
           applyWeatherData(cached.data, biasModel);
+          weatherSource = 'cache';
           return true;
         } catch (_error) {
+          return false;
+        }
+      }
+
+      async function applyInitialWeatherFallback() {
+        if (applyCachedWeather()) return true;
+        try {
+          const data = await fetchLocalWeather();
+          applyWeatherData(data);
+          return true;
+        } catch (error) {
+          if (CONFIG.debug) showError(`Weather fallback: ${error.message}`);
           return false;
         }
       }
@@ -1333,17 +1371,18 @@
           let data;
           let biasModel = null;
           try {
-            data = await fetchGeneratedWeather();
-            try {
-              biasModel = await fetchWeatherBias();
-            } catch (biasError) {
-              if (CONFIG.debug) showError(`Bias: ${biasError.message}`);
-            }
+            const generated = await fetchWeatherWithOptionalBias(fetchGeneratedWeather, fetchWeatherBias);
+            data = generated.data;
+            biasModel = generated.biasModel;
+            if (generated.biasError && CONFIG.debug) showError(`Bias: ${generated.biasError.message}`);
           } catch (generatedError) {
             const cacheApplied = applyCachedWeather();
             if (cacheApplied) {
-              weatherSource = 'cache';
               if (CONFIG.debug) showError(`Weather: cache; generated ${generatedError.message}`);
+              return;
+            }
+            if (weatherHasData) {
+              if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}`);
               return;
             }
 
@@ -1416,7 +1455,7 @@
         $('photoFrame').src = CONFIG.photoIframeUrl;
         setHTML('windIcon', windSvg());
         applyDeviceFallback();
-        applyCachedWeather();
+        await applyInitialWeatherFallback();
 
         // This first await is intentional. The script is type="module", so top-level
         // await keeps the first page load from completing until the initial weather

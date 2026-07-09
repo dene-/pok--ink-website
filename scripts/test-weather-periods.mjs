@@ -12,7 +12,7 @@ assert.ok(scriptMatch, 'dashboard module script exists');
 
 const dashboardScript = scriptMatch[1].replace(
   /\s+await init\(\);\s*$/,
-  '\nObject.assign(globalThis.__hooks, { applyForecastBias, isUsableBiasModel, periodHoursForLabel, summarizeForecastPeriod });'
+  '\nObject.assign(globalThis.__hooks, { applyForecastBias, isUsableBiasModel, periodHoursForLabel, summarizeForecastPeriod, validateGeneratedWeatherData: typeof validateGeneratedWeatherData === "function" ? validateGeneratedWeatherData : null, fetchWeatherWithOptionalBias: typeof fetchWeatherWithOptionalBias === "function" ? fetchWeatherWithOptionalBias : null });'
 );
 
 const context = {
@@ -29,7 +29,9 @@ const {
   applyForecastBias,
   isUsableBiasModel,
   periodHoursForLabel,
-  summarizeForecastPeriod
+  summarizeForecastPeriod,
+  validateGeneratedWeatherData,
+  fetchWeatherWithOptionalBias
 } = context.globalThis.__hooks;
 
 function assertJsonEqual(actual, expected, message) {
@@ -181,6 +183,40 @@ assert.equal(
   false,
   'Stale bias model is ignored'
 );
+
+const now = new Date();
+const yesterday = new Date(now);
+yesterday.setDate(yesterday.getDate() - 1);
+const yesterdayIso = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+}).format(yesterday);
+
+assert.doesNotThrow(
+  () => validateGeneratedWeatherData({
+    current: {},
+    daily: { time: Array.from({ length: 6 }, () => yesterdayIso) },
+    generated_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
+  }, now),
+  'recent generated weather remains usable after a missed overnight update'
+);
+
+const fetchStarts = [];
+const weatherWithBias = await fetchWeatherWithOptionalBias(
+  async () => {
+    fetchStarts.push('weather');
+    return { current: {}, daily: { time: [] } };
+  },
+  async () => {
+    fetchStarts.push('bias');
+    throw new Error('bias unavailable');
+  }
+);
+
+assertJsonEqual(fetchStarts, ['weather', 'bias'], 'weather and optional bias fetches start together');
+assert.equal(weatherWithBias.biasModel, null, 'weather remains usable when optional bias fetch fails');
 
 assertJsonEqual(
   applyForecastBias({

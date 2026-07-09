@@ -77,10 +77,25 @@ async function readJsonIfExists(filePath) {
   }
 }
 
-async function fetchJson(fetchImpl, url) {
-  const response = await fetchImpl(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`${url} HTTP ${response.status}`);
-  return response.json();
+async function fetchJson(fetchImpl, url, options = {}) {
+  const attempts = Math.max(1, Number(options.attempts) || 1);
+  const retryDelayMs = Math.max(0, Number(options.retryDelayMs) || 0);
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetchImpl(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`${url} HTTP ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts && retryDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 function resolveConfig(options = {}) {
@@ -112,7 +127,10 @@ export async function runWeatherUpdate(options = {}) {
   const log = options.log || console.log;
   const config = resolveConfig(options);
   const forecastUrl = buildWeatherUrl(config);
-  const weather = await fetchJson(fetchImpl, forecastUrl);
+  const weather = await fetchJson(fetchImpl, forecastUrl, {
+    attempts: Number(options.fetchAttempts) || 3,
+    retryDelayMs: options.fetchRetryDelayMs ?? 1000
+  });
 
   validateWeatherData(weather);
   weather.generated_at = now.toISOString();

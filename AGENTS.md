@@ -13,6 +13,20 @@ device-targeted screen, not as a general responsive website.
   editing, reviewing, or preprocessing static screens or image assets for the
   reTerminal E1002/SenseCraft HMI target.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `dene-/pok--ink-website`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-label triage vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo. See `docs/agents/domain.md`.
+
 Current pages:
 
 - `index.html`: full-screen random photo page. It chooses one image from an

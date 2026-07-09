@@ -329,3 +329,30 @@ test('weather update runner writes weather, history, and bias files with injecte
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('weather update runner retries a transient forecast request failure', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-retry-'));
+  let attempts = 0;
+
+  try {
+    await runWeatherUpdate({
+      outputDir: dir,
+      now: new Date('2026-05-29T04:05:00Z'),
+      fetchRetryDelayMs: 0,
+      fetchImpl: async () => {
+        attempts += 1;
+        if (attempts === 1) throw new TypeError('fetch failed');
+        return {
+          ok: true,
+          status: 200,
+          json: async () => buildForecast('2026-05-29')
+        };
+      },
+      log: () => {}
+    });
+
+    assert.equal(attempts, 2);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
