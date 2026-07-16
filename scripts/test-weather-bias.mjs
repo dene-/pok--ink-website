@@ -350,8 +350,9 @@ test('weather update runner overlays current conditions from OpenWeather', async
             ok: true,
             status: 200,
             json: async () => ({
-              main: { temp: 32, humidity: 58 },
-              wind: { speed: 5, deg: 210 },
+              weather: [{ description: 'overcast clouds' }],
+              main: { temp: 32, temp_min: 31.7, temp_max: 35.2, humidity: 58 },
+              wind: { speed: 5, gust: 7, deg: 210 },
               dt: 1780034700
             })
           };
@@ -373,9 +374,13 @@ test('weather update runner overlays current conditions from OpenWeather', async
     assert.match(openWeatherUrl, /appid=test-secret/);
     assert.equal(weather.current.temperature_2m, 32);
     assert.equal(weather.current.time, '2026-05-29T08:05');
+    assert.equal(weather.current.temperature_min, 31.7);
+    assert.equal(weather.current.temperature_max, 35.2);
     assert.equal(weather.current.relative_humidity_2m, 58);
     assert.equal(weather.current.wind_speed_10m, 18);
+    assert.equal(weather.current.wind_gust_10m, 25.2);
     assert.equal(weather.current.wind_direction_10m, 210);
+    assert.equal(weather.current.description, 'overcast clouds');
     assert.equal(weather.current_source, 'openweather');
   } finally {
     await rm(dir, { recursive: true, force: true });

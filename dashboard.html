@@ -299,9 +299,9 @@
       #currentTemp {
         align-self: center;
         justify-self: center;
-        font-size: 56px;
+        font-size: 48px;
         font-weight: 400;
-        line-height: 56px;
+        line-height: 48px;
         letter-spacing: 0;
         white-space: nowrap;
       }
@@ -565,7 +565,7 @@
 
         <section
           class="panel todayRangePanel"
-          aria-label="Today temperature range"
+          aria-label="Current temperature range"
         >
           <div class="rangeRow">
             <span class="rangeLabel">Max</span
@@ -600,8 +600,8 @@
           <div class="windUnit">km/h</div>
         </section>
 
-        <section class="panel windMaxPanel" aria-label="Maximum wind">
-          <div class="windMaxLabel">Max</div>
+        <section class="panel windMaxPanel" aria-label="Wind gust">
+          <div class="windMaxLabel">Gust</div>
           <div id="windMax">--.-</div>
         </section>
 
@@ -1248,16 +1248,27 @@
         setText('weekday', formatWeekday(todayISO));
 
         setText('currentTemp', fixed(current.temperature_2m, 1));
-        setText('currentDesc', weatherDescription(current.weather_code));
+        setText('currentDesc', current.description || weatherDescription(current.weather_code));
         setHTML('currentIcon', iconSvg(weatherIconType(current.weather_code), 3));
 
-        setText('todayMax', fixed(Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined, 1));
-        setText('todayMin', fixed(Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined, 1));
+        const currentMax = Number.isFinite(Number(current.temperature_max))
+          ? current.temperature_max
+          : Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined;
+        const currentMin = Number.isFinite(Number(current.temperature_min))
+          ? current.temperature_min
+          : Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined;
+        setText('todayMax', fixed(currentMax, 1));
+        setText('todayMin', fixed(currentMin, 1));
 
         for (let i = 0; i < 5; i += 1) updateForecastDay(i, data, biasModel);
 
         setText('windSpeed', fixed(current.wind_speed_10m, 1));
-        setText('windMax', fixed(Array.isArray(daily.wind_speed_10m_max) ? daily.wind_speed_10m_max[0] : undefined, 1));
+        const windGust = Number.isFinite(Number(current.wind_gust_10m))
+          ? current.wind_gust_10m
+          : Number.isFinite(Number(current.wind_gusts_10m))
+            ? current.wind_gusts_10m
+            : Array.isArray(daily.wind_speed_10m_max) ? daily.wind_speed_10m_max[0] : undefined;
+        setText('windMax', fixed(windGust, 1));
         setText('windDirection', windDirection(current.wind_direction_10m));
         setText('weatherUpdateTime', formatWeatherUpdateTime(current.time));
 

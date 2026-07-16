@@ -34,7 +34,7 @@ export function buildWeatherUrl(config = CONFIG) {
     temperature_unit: 'celsius',
     wind_speed_unit: 'kmh',
     precipitation_unit: 'mm',
-    current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+    current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day',
     hourly: 'weather_code,cloud_cover,precipitation_probability,precipitation,rain,showers,is_day',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
   });
@@ -137,14 +137,28 @@ function applyOpenWeatherCurrent(weather, current, config) {
   weather.current.temperature_2m = temperature;
   weather.current.time = localDateTimeFromUnixSeconds(current.dt, config.timezone);
 
+  const temperatureMin = Number(current?.main?.temp_min);
+  if (Number.isFinite(temperatureMin)) weather.current.temperature_min = temperatureMin;
+
+  const temperatureMax = Number(current?.main?.temp_max);
+  if (Number.isFinite(temperatureMax)) weather.current.temperature_max = temperatureMax;
+
   const humidity = Number(current?.main?.humidity);
   if (Number.isFinite(humidity)) weather.current.relative_humidity_2m = humidity;
 
   const windSpeedMs = Number(current?.wind?.speed);
   if (Number.isFinite(windSpeedMs)) weather.current.wind_speed_10m = windSpeedMs * 3.6;
 
+  const windGustMs = Number(current?.wind?.gust);
+  if (Number.isFinite(windGustMs)) weather.current.wind_gust_10m = windGustMs * 3.6;
+
   const windDirection = Number(current?.wind?.deg);
   if (Number.isFinite(windDirection)) weather.current.wind_direction_10m = windDirection;
+
+  const description = current?.weather?.[0]?.description;
+  if (typeof description === 'string' && description.trim()) {
+    weather.current.description = description.trim();
+  }
 
   const observationDate = new Date(Number(current.dt) * 1000);
   const sunrise = Number(current?.sys?.sunrise) * 1000;
