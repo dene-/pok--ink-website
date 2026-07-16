@@ -34,7 +34,7 @@ export function buildWeatherUrl(config = CONFIG) {
     temperature_unit: 'celsius',
     wind_speed_unit: 'kmh',
     precipitation_unit: 'mm',
-    current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day',
+    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day',
     hourly: 'weather_code,cloud_cover,precipitation_probability,precipitation,rain,showers,is_day',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
   });
@@ -142,6 +142,9 @@ function applyOpenWeatherCurrent(weather, current, config) {
 
   const temperatureMax = Number(current?.main?.temp_max);
   if (Number.isFinite(temperatureMax)) weather.current.temperature_max = temperatureMax;
+
+  const apparentTemperature = Number(current?.main?.feels_like);
+  if (Number.isFinite(apparentTemperature)) weather.current.apparent_temperature = apparentTemperature;
 
   const humidity = Number(current?.main?.humidity);
   if (Number.isFinite(humidity)) weather.current.relative_humidity_2m = humidity;

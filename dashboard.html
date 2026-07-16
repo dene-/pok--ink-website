@@ -107,7 +107,7 @@
 
       .rightColumn {
         display: grid;
-        grid-template-rows: 136px 83px 63px 80px 42px 34px 34px;
+        grid-template-rows: 136px 42px 83px 63px 115px 34px;
         gap: 1px;
       }
 
@@ -339,6 +339,35 @@
         padding: 6px 8px;
       }
 
+      .feelsLikePanel {
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr) 16px;
+        align-items: center;
+        column-gap: 2px;
+        padding: 4px;
+      }
+
+      .feelsLikeLabel {
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
+        white-space: normal;
+      }
+
+      .feelsLikeValue {
+        justify-self: end;
+        font-size: 32px;
+        font-weight: 400;
+        line-height: 32px;
+        letter-spacing: 0;
+      }
+
+      .feelsLikeUnit {
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 16px;
+      }
+
       .rangeRow {
         display: grid;
         grid-template-columns: 40px 1fr 28px;
@@ -400,15 +429,38 @@
         justify-self: start;
       }
 
-      .windCurrentPanel {
+      .windPanel {
         display: grid;
-        grid-template-rows: 26px 32px 16px;
+        grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: 16px 32px 16px 32px;
         align-items: center;
-        justify-items: center;
-        padding: 4px 8px 3px;
+        column-gap: 4px;
+        row-gap: 2px;
+        padding: 6px;
       }
 
-      #windSpeed {
+      .windPanel .windIcon {
+        grid-row: 1 / span 4;
+      }
+
+      .windMetric {
+        display: grid;
+        grid-row: 1 / span 3;
+        grid-template-rows: 16px 32px 16px;
+        align-items: center;
+        justify-items: center;
+        min-width: 0;
+      }
+
+      .windMetricLabel {
+        font-family: var(--font-compact);
+        font-size: 8px;
+        font-weight: 400;
+        line-height: 8px;
+        white-space: nowrap;
+      }
+
+      .windValue {
         font-size: 32px;
         font-weight: 400;
         line-height: 32px;
@@ -417,48 +469,29 @@
       }
 
       .windUnit {
-        font-size: 16px;
+        font-family: var(--font-compact);
+        font-size: 8px;
         font-weight: 400;
-        line-height: 16px;
+        line-height: 8px;
         white-space: nowrap;
       }
 
-      .windMaxPanel {
+      .windDirectionMetric {
         display: grid;
-        grid-template-columns: 44px 1fr;
+        grid-column: 2 / 4;
+        grid-row: 4;
+        grid-template-columns: 32px 1fr;
         align-items: center;
         column-gap: 4px;
-        padding: 2px 13px;
-      }
-
-      .windMaxLabel {
-        font-size: 16px;
-        font-weight: 400;
-        line-height: 16px;
-      }
-
-      #windMax {
-        justify-self: end;
-        font-size: 32px;
-        font-weight: 400;
-        line-height: 32px;
-        letter-spacing: 0;
-        white-space: nowrap;
-      }
-
-      .windDirectionPanel {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px 8px;
-        text-align: center;
+        min-width: 0;
       }
 
       #windDirection {
-        font-size: 16px;
+        min-width: 0;
+        font-size: 32px;
         font-weight: 400;
-        line-height: 16px;
-        overflow-wrap: anywhere;
+        line-height: 32px;
+        white-space: nowrap;
       }
 
       .weatherUpdatePanel {
@@ -563,6 +596,12 @@
           </div>
         </section>
 
+        <section class="panel feelsLikePanel" aria-label="Feels like temperature">
+          <span class="feelsLikeLabel">Feels like</span>
+          <span id="feelsLike" class="feelsLikeValue">--.-</span>
+          <span class="feelsLikeUnit">°C</span>
+        </section>
+
         <section
           class="panel todayRangePanel"
           aria-label="Current temperature range"
@@ -594,19 +633,22 @@
           </div>
         </section>
 
-        <section class="panel windCurrentPanel" aria-label="Current wind">
+        <section class="panel windPanel" aria-label="Wind">
           <div id="windIcon" class="windIcon"></div>
-          <div id="windSpeed">--.-</div>
-          <div class="windUnit">km/h</div>
-        </section>
-
-        <section class="panel windMaxPanel" aria-label="Wind gust">
-          <div class="windMaxLabel">Gust</div>
-          <div id="windMax">--.-</div>
-        </section>
-
-        <section class="panel windDirectionPanel" aria-label="Wind direction">
-          <div id="windDirection">-- Wind</div>
+          <div class="windMetric">
+            <div class="windMetricLabel">Wind</div>
+            <div id="windSpeed" class="windValue">--.-</div>
+            <div class="windUnit">km/h</div>
+          </div>
+          <div class="windMetric">
+            <div class="windMetricLabel">Gust</div>
+            <div id="windMax" class="windValue">--.-</div>
+            <div class="windUnit">km/h</div>
+          </div>
+          <div class="windDirectionMetric">
+            <span class="windMetricLabel">Dir</span>
+            <span id="windDirection">--</span>
+          </div>
         </section>
 
         <section
@@ -1086,10 +1128,10 @@
 
       function windDirection(deg) {
         const n = Number(deg);
-        if (!Number.isFinite(n)) return '-- Wind';
-        const names = ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'];
+        if (!Number.isFinite(n)) return '--';
+        const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
         const idx = Math.round((((n % 360) + 360) % 360) / 45) % 8;
-        return `${names[idx]} Wind`;
+        return names[idx];
       }
 
       function nestedValue(obj, path) {
@@ -1248,6 +1290,10 @@
         setText('weekday', formatWeekday(todayISO));
 
         setText('currentTemp', fixed(current.temperature_2m, 1));
+        const feelsLike = Number.isFinite(Number(current.apparent_temperature))
+          ? current.apparent_temperature
+          : current.temperature_2m;
+        setText('feelsLike', fixed(feelsLike, 1));
         setText('currentDesc', current.description || weatherDescription(current.weather_code));
         setHTML('currentIcon', iconSvg(weatherIconType(current.weather_code), 3));
 

@@ -351,7 +351,7 @@ test('weather update runner overlays current conditions from OpenWeather', async
             status: 200,
             json: async () => ({
               weather: [{ description: 'overcast clouds' }],
-              main: { temp: 32, temp_min: 31.7, temp_max: 35.2, humidity: 58 },
+              main: { temp: 32, feels_like: 39.4, temp_min: 31.7, temp_max: 35.2, humidity: 58 },
               wind: { speed: 5, gust: 7, deg: 210 },
               dt: 1780034700
             })
@@ -376,6 +376,7 @@ test('weather update runner overlays current conditions from OpenWeather', async
     assert.equal(weather.current.time, '2026-05-29T08:05');
     assert.equal(weather.current.temperature_min, 31.7);
     assert.equal(weather.current.temperature_max, 35.2);
+    assert.equal(weather.current.apparent_temperature, 39.4);
     assert.equal(weather.current.relative_humidity_2m, 58);
     assert.equal(weather.current.wind_speed_10m, 18);
     assert.equal(weather.current.wind_gust_10m, 25.2);
