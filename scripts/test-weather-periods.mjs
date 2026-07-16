@@ -168,10 +168,12 @@ assertJsonEqual(
 
 assert.equal(
   isUsableBiasModel({
-    schemaVersion: 1,
+    schemaVersion: 2,
     generated_at: '2026-05-20T06:00:00.000Z',
     maxAgeHours: 36,
     location: { latitude: 41.3474, longitude: 2.0431, timezone: 'Europe/Madrid' },
+    forecastSource: 'open-meteo',
+    forecastModel: 'open-meteo-best-match',
     adjustments: {}
   }, new Date('2026-05-20T18:00:00.000Z')),
   true,
@@ -180,10 +182,12 @@ assert.equal(
 
 assert.equal(
   isUsableBiasModel({
-    schemaVersion: 1,
+    schemaVersion: 2,
     generated_at: '2026-05-18T06:00:00.000Z',
     maxAgeHours: 36,
     location: { latitude: 41.3474, longitude: 2.0431, timezone: 'Europe/Madrid' },
+    forecastSource: 'open-meteo',
+    forecastModel: 'open-meteo-best-match',
     adjustments: {}
   }, new Date('2026-05-20T18:00:00.000Z')),
   false,

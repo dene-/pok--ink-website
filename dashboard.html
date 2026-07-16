@@ -1031,10 +1031,20 @@
         return latOk && lonOk && String(actual.timezone) === String(CONFIG.timezone);
       }
 
+      function forecastProvenance(data) {
+        const sourceUrl = String(data?.source_url || '');
+        const source = String(data?.forecast_source || '').trim()
+          || (sourceUrl.includes('open-meteo') || !sourceUrl ? 'open-meteo' : 'unknown');
+        const model = String(data?.forecast_model || '').trim()
+          || (source === 'open-meteo' ? 'open-meteo-best-match' : 'unknown');
+        return { source, model };
+      }
+
       function isUsableBiasModel(model, now = new Date()) {
         if (!model || typeof model !== 'object') return false;
-        if (Number(model.schemaVersion) !== 1) return false;
+        if (Number(model.schemaVersion) !== 2) return false;
         if (!locationsMatch(model.location)) return false;
+        if (!String(model.forecastSource || '').trim() || !String(model.forecastModel || '').trim()) return false;
 
         const generatedAt = new Date(model.generated_at).getTime();
         if (!Number.isFinite(generatedAt)) return false;
@@ -1310,6 +1320,12 @@
         validateWeatherData(data);
         validateCurrentWeatherData(data);
         activeWeatherData = data;
+        const provenance = forecastProvenance(data);
+        const usableBiasModel = isUsableBiasModel(biasModel)
+          && biasModel.forecastSource === provenance.source
+          && biasModel.forecastModel === provenance.model
+          ? biasModel
+          : null;
 
         const current = data.current || {};
         const daily = data.daily || {};
@@ -1335,7 +1351,7 @@
         setText('todayMax', fixed(currentMax, 1));
         setText('todayMin', fixed(currentMin, 1));
 
-        for (let i = 0; i < 5; i += 1) updateForecastDay(i, data, biasModel);
+        for (let i = 0; i < 5; i += 1) updateForecastDay(i, data, usableBiasModel);
 
         setText('windSpeed', fixed(current.wind_speed_10m, 1));
         const windGust = Number.isFinite(Number(current.wind_gust_10m))

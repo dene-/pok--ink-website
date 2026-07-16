@@ -216,6 +216,52 @@ test('builds gated recency weighted temperature corrections with clamps and metr
   assert.ok(model.metrics.temperature.horizons['1'].minC.correctedMae < model.metrics.temperature.horizons['1'].minC.rawMae);
 });
 
+test('uses only a recent held-out window to accept a temperature correction', () => {
+  const snapshots = Array.from({ length: 14 }, (_value, index) => resolvedSnapshot({
+    issuedAt: `2026-05-${String(index + 1).padStart(2, '0')}T04:00:00.000Z`,
+    forecastMin: 10,
+    actualMin: index < 10 ? 12 : 8,
+    forecastMax: 20,
+    actualMax: 20
+  }));
+  const model = buildBiasModel(historyWithSnapshots(snapshots), new Date('2026-05-29T08:00:00Z'), { location: LOCATION });
+
+  assert.equal(model.adjustments['1'].minC.applied, false);
+  assert.equal(model.adjustments['1'].minC.reason, 'no_validated_improvement');
+});
+
+test('uses a provider-specific history partition', () => {
+  const snapshots = Array.from({ length: 14 }, (_value, index) => resolvedSnapshot({
+    issuedAt: `2026-05-${String(index + 1).padStart(2, '0')}T04:00:00.000Z`,
+    forecastMin: 10,
+    actualMin: 12,
+    forecastMax: 20,
+    actualMax: 19
+  }));
+  const model = buildBiasModel(historyWithSnapshots(snapshots), new Date('2026-05-29T08:00:00Z'), {
+    location: LOCATION,
+    forecastSource: 'open-weather',
+    forecastModel: 'proprietary'
+  });
+
+  assert.equal(model.metrics.sampleCount, 0);
+  assert.equal(model.adjustments['1'].minC.applied, false);
+});
+
+test('uses a robust median against a single extreme historical error', () => {
+  const snapshots = Array.from({ length: 42 }, (_value, index) => resolvedSnapshot({
+    issuedAt: `2026-04-${String((index % 28) + 1).padStart(2, '0')}T04:00:00.000Z`,
+    forecastMin: 10,
+    actualMin: index === 0 ? 30 : 11,
+    forecastMax: 20,
+    actualMax: 20
+  }));
+  const model = buildBiasModel(historyWithSnapshots(snapshots), new Date('2026-05-29T08:00:00Z'), { location: LOCATION });
+
+  assert.equal(model.adjustments['1'].minC.delta, 1);
+  assert.equal(model.adjustments['1'].minC.applied, true);
+});
+
 test('allows stronger temperature clamps after enough evidence', () => {
   const snapshots = Array.from({ length: 42 }, (_value, index) => resolvedSnapshot({
     issuedAt: `2026-04-${String((index % 28) + 1).padStart(2, '0')}T04:00:00.000Z`,
@@ -284,10 +330,12 @@ test('applies bias without inverting daily temperature range and guards implausi
 
 test('rejects stale or mismatched runtime bias models', () => {
   const fresh = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generated_at: '2026-05-29T08:00:00.000Z',
     maxAgeHours: 36,
     location: LOCATION,
+    forecastSource: 'open-meteo',
+    forecastModel: 'open-meteo-best-match',
     adjustments: {}
   };
 
@@ -323,8 +371,15 @@ test('weather update runner writes weather, history, and bias files with injecte
 
     assert.equal(weather.daily.time[0], '2026-05-29');
     assert.equal(weather.generated_at, '2026-05-29T04:05:00.000Z');
+    assert.equal(weather.forecast_source, 'open-meteo');
+    assert.equal(weather.forecast_model, 'open-meteo-best-match');
     assert.equal(history.locations[locationKey(LOCATION)].snapshots.length, 5);
+    assert.equal(history.locations[locationKey(LOCATION)].snapshots[0].forecastSource, 'open-meteo');
+    assert.equal(history.locations[locationKey(LOCATION)].snapshots[0].forecastModel, 'open-meteo-best-match');
     assert.equal(bias.generated_at, '2026-05-29T04:05:00.000Z');
+    assert.equal(bias.schemaVersion, 2);
+    assert.equal(bias.forecastSource, 'open-meteo');
+    assert.equal(bias.forecastModel, 'open-meteo-best-match');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

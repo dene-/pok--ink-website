@@ -232,6 +232,8 @@ export async function runWeatherUpdate(options = {}) {
   validateWeatherData(weather);
   weather.generated_at = now.toISOString();
   weather.source_url = forecastUrl;
+  weather.forecast_source = 'open-meteo';
+  weather.forecast_model = 'open-meteo-best-match';
 
   const openWeatherApiKey = String(options.openWeatherApiKey ?? process.env.OPENWEATHER_API_KEY ?? '').trim();
   const requireOpenWeather = options.requireOpenWeather
@@ -278,7 +280,11 @@ export async function runWeatherUpdate(options = {}) {
 
   history = resolveSnapshotsWithActuals(history, actualsByDate, now, { location: config.location });
   history = trimHistory(history, now, { location: config.location });
-  const bias = buildBiasModel(history, now, { location: config.location });
+  const bias = buildBiasModel(history, now, {
+    location: config.location,
+    forecastSource: weather.forecast_source,
+    forecastModel: weather.forecast_model
+  });
 
   const weatherPath = path.join(config.outputDir, 'weather.json');
   const historyOutputPath = path.join(config.outputDir, 'weather-bias-history.json');

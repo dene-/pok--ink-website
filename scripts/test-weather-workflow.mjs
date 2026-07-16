@@ -40,6 +40,8 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.ok(existingDataFallback >= 0, 'runtime preserves usable existing weather data');
   assert.ok(localFallback < existingDataFallback, 'same-origin fallback is attempted before preserving an old snapshot');
   assert.match(dashboard, /apparent_temperature/);
+  assert.match(dashboard, /forecastProvenance/);
+  assert.match(dashboard, /schemaVersion\) !== 2/);
   assert.match(dashboard, /publishedMaxAgeMinutes: 90/);
   assert.match(dashboard, /emergencyMaxAgeMinutes: 90/);
   assert.match(dashboard, /freshJsonUrl/);

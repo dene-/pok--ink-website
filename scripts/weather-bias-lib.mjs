@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DEFAULT_LOCATION = {
   latitude: 41.3474,
@@ -17,6 +17,9 @@ export const DEFAULT_LIMITS = {
   iconMinSamples: 20,
   wetFalsePositiveMinSamples: 10,
   wetFalsePositiveDryShare: 0.7,
+  validationFraction: 0.25,
+  validationMinSamples: 4,
+  minimumImprovementC: 0.1,
   actualWetTotalMm: 0.5,
   actualWetHourlyMm: 0.2,
   forecastWetTotalMm: 0.5,
@@ -87,6 +90,22 @@ function mergeOptions(options = {}) {
   return {
     location: options.location || DEFAULT_LOCATION,
     limits: { ...DEFAULT_LIMITS, ...(options.limits || {}) }
+  };
+}
+
+export function forecastProvenance(weather = {}) {
+  const sourceUrl = String(weather.source_url || '');
+  const source = String(weather.forecast_source || '').trim()
+    || (sourceUrl.includes('open-meteo') || !sourceUrl ? 'open-meteo' : 'unknown');
+  const model = String(weather.forecast_model || '').trim()
+    || (source === 'open-meteo' ? 'open-meteo-best-match' : 'unknown');
+  return { source, model };
+}
+
+function snapshotProvenance(snapshot = {}) {
+  return {
+    source: String(snapshot.forecastSource || '').trim() || 'open-meteo',
+    model: String(snapshot.forecastModel || '').trim() || 'open-meteo-best-match'
   };
 }
 
@@ -283,6 +302,7 @@ export function captureForecastSnapshots(historyInput, weather, now = new Date()
   const { location, limits } = mergeOptions(options);
   const history = normalizeHistory(historyInput, location);
   const store = getStore(history, location);
+  const provenance = forecastProvenance(weather);
   const parts = localParts(now, location.timezone);
   const issueBucket = captureBucketForDate(now, location.timezone);
 
@@ -314,6 +334,9 @@ export function captureForecastSnapshots(historyInput, weather, now = new Date()
       issuedAt: now.toISOString(),
       issueDate: parts.date,
       issueBucket,
+      forecastSource: provenance.source,
+      forecastModel: provenance.model,
+      forecastIssuedAt: weather.generated_at || null,
       targetDate,
       horizonDays,
       forecast,
@@ -379,9 +402,13 @@ export function trimHistory(historyInput, now = new Date(), options = {}) {
   return history;
 }
 
-function resolvedSamples(history, location) {
+function resolvedSamples(history, location, forecastSource, forecastModel) {
   const store = getStore(history, location);
-  return store.snapshots.filter((snapshot) => snapshot.actual);
+  return store.snapshots.filter((snapshot) => {
+    if (!snapshot.actual) return false;
+    const provenance = snapshotProvenance(snapshot);
+    return provenance.source === forecastSource && provenance.model === forecastModel;
+  });
 }
 
 function temperatureClamp(sampleCount, limits) {
@@ -393,6 +420,45 @@ function temperatureClamp(sampleCount, limits) {
   );
   return limits.temperatureMinClampC
     + (limits.temperatureMaxClampC - limits.temperatureMinClampC) * progress;
+}
+
+function validationSplit(rows, limits) {
+  const ordered = [...rows].sort((left, right) => {
+    const leftTime = new Date(left.issuedAt).getTime();
+    const rightTime = new Date(right.issuedAt).getTime();
+    return (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
+  });
+  const validationCount = Math.max(
+    limits.validationMinSamples,
+    Math.ceil(ordered.length * limits.validationFraction)
+  );
+  if (ordered.length <= validationCount) return { training: [], validation: ordered };
+  return {
+    training: ordered.slice(0, ordered.length - validationCount),
+    validation: ordered.slice(ordered.length - validationCount)
+  };
+}
+
+function weightedMedian(rows, now, limits, field) {
+  const weighted = rows.map((snapshot) => {
+    const error = Number(snapshot.actual[field]) - Number(snapshot.forecast[field]);
+    const ageDays = daysBetween(snapshot.targetDate, now);
+    return {
+      error,
+      weight: 0.5 ** (ageDays / limits.recencyHalfLifeDays)
+    };
+  }).filter((item) => Number.isFinite(item.error) && Number.isFinite(item.weight) && item.weight > 0)
+    .sort((left, right) => left.error - right.error);
+
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  if (!totalWeight) return 0;
+
+  let accumulated = 0;
+  for (const item of weighted) {
+    accumulated += item.weight;
+    if (accumulated >= totalWeight / 2) return item.error;
+  }
+  return weighted[weighted.length - 1].error;
 }
 
 function mean(values) {
@@ -425,30 +491,40 @@ function computeTemperatureAdjustment(samples, horizonDays, issueBucket, field, 
     };
   }
 
-  const weighted = selected.reduce((acc, snapshot) => {
-    const error = Number(snapshot.actual[field]) - Number(snapshot.forecast[field]);
-    const ageDays = daysBetween(snapshot.targetDate, now);
-    const weight = 0.5 ** (ageDays / limits.recencyHalfLifeDays);
-    acc.weightedError += error * weight;
-    acc.weight += weight;
-    acc.errors.push(error);
-    return acc;
-  }, { weightedError: 0, weight: 0, errors: [] });
+  const { training, validation } = validationSplit(selected, limits);
+  if (!training.length || validation.length < limits.validationMinSamples) {
+    return {
+      applied: false,
+      delta: 0,
+      samples: selected.length,
+      trainingSamples: training.length,
+      validationSamples: validation.length,
+      rawMae: null,
+      correctedMae: null,
+      reason: 'not_enough_validation_samples'
+    };
+  }
 
-  const unclampedDelta = weighted.weight ? weighted.weightedError / weighted.weight : 0;
+  const unclampedDelta = weightedMedian(training, now, limits, field);
   const clamp = temperatureClamp(selected.length, limits);
   const delta = round(Math.max(-clamp, Math.min(clamp, unclampedDelta)), 1);
-  const rawMae = mean(weighted.errors.map((error) => Math.abs(error)));
-  const correctedMae = mean(weighted.errors.map((error) => Math.abs(error - delta)));
-  const improves = correctedMae !== null && rawMae !== null && correctedMae < rawMae - 0.01;
+  const validationErrors = validation.map((snapshot) => Number(snapshot.actual[field]) - Number(snapshot.forecast[field]))
+    .filter((error) => Number.isFinite(error));
+  const rawMae = mean(validationErrors.map((error) => Math.abs(error)));
+  const correctedMae = mean(validationErrors.map((error) => Math.abs(error - delta)));
+  const improvement = rawMae !== null && correctedMae !== null ? rawMae - correctedMae : null;
+  const improves = improvement !== null && improvement >= limits.minimumImprovementC;
 
   return {
     applied: improves && Math.abs(delta) >= 0.1,
     delta,
     samples: selected.length,
+    trainingSamples: training.length,
+    validationSamples: validationErrors.length,
     rawMae: round(rawMae, 3),
     correctedMae: round(correctedMae, 3),
-    reason: improves ? source : 'no_measured_improvement'
+    improvementC: round(improvement, 3),
+    reason: improves ? `${source}_validated` : 'no_validated_improvement'
   };
 }
 
@@ -471,7 +547,8 @@ function iconRows(samples, horizonDays, issueBucket, period, forecastType, limit
   )).map((snapshot) => ({
     forecastType,
     actualType: snapshot.actual.periods[period].type,
-    issueBucket: snapshot.issueBucket
+    issueBucket: snapshot.issueBucket,
+    issuedAt: snapshot.issuedAt
   }));
 
   const matching = horizonRows.filter((row) => row.issueBucket === issueBucket);
@@ -493,9 +570,10 @@ function computeIconAdjustment(samples, horizonDays, issueBucket, period, limits
     const { rows, source } = iconRows(samples, horizonDays, issueBucket, period, forecastType, limits);
     if (!rows.length) continue;
 
-    const candidate = dominantActualType(rows);
-    const rawCorrect = rows.filter((row) => row.actualType === forecastType).length;
-    const correctedCorrect = rows.filter((row) => row.actualType === candidate).length;
+    const { training, validation } = validationSplit(rows, limits);
+    const candidate = dominantActualType(training);
+    const rawCorrect = validation.filter((row) => row.actualType === forecastType).length;
+    const correctedCorrect = validation.filter((row) => row.actualType === candidate).length;
     const dryActualCount = rows.filter((row) => DRY_TYPES.has(row.actualType)).length;
     const strongWetFalsePositive = WET_FALSE_POSITIVE_TYPES.has(forecastType)
       && rows.length >= limits.wetFalsePositiveMinSamples
@@ -504,6 +582,7 @@ function computeIconAdjustment(samples, horizonDays, issueBucket, period, limits
 
     if (
       candidate !== forecastType
+      && validation.length >= limits.validationMinSamples
       && correctedCorrect > rawCorrect
       && (normalEligible || strongWetFalsePositive)
     ) {
@@ -517,22 +596,24 @@ function computeIconAdjustment(samples, horizonDays, issueBucket, period, limits
     && snapshot.actual?.periods?.[period]?.type
     && snapshot.forecast?.periods?.[period]?.type
   ));
-  const rawCorrect = metricRows.filter((snapshot) => (
+  const metricValidation = validationSplit(metricRows, limits).validation;
+  const rawCorrect = metricValidation.filter((snapshot) => (
     snapshot.actual.periods[period].type === snapshot.forecast.periods[period].type
   )).length;
-  const correctedCorrect = metricRows.filter((snapshot) => {
+  const correctedCorrect = metricValidation.filter((snapshot) => {
     const forecastType = snapshot.forecast.periods[period].type;
     const correctedType = overrides[forecastType] || forecastType;
     return snapshot.actual.periods[period].type === correctedType;
   }).length;
-  const wetForecastRows = metricRows.filter((snapshot) => WET_FALSE_POSITIVE_TYPES.has(snapshot.forecast.periods[period].type));
+  const wetForecastRows = metricValidation.filter((snapshot) => WET_FALSE_POSITIVE_TYPES.has(snapshot.forecast.periods[period].type));
   const wetFalsePositiveRows = wetForecastRows.filter((snapshot) => DRY_TYPES.has(snapshot.actual.periods[period].type));
 
   return {
     overrides,
     samples: metricRows.length,
-    rawAccuracy: metricRows.length ? round(rawCorrect / metricRows.length, 3) : null,
-    correctedAccuracy: metricRows.length ? round(correctedCorrect / metricRows.length, 3) : null,
+    validationSamples: metricValidation.length,
+    rawAccuracy: metricValidation.length ? round(rawCorrect / metricValidation.length, 3) : null,
+    correctedAccuracy: metricValidation.length ? round(correctedCorrect / metricValidation.length, 3) : null,
     wetFalsePositiveRate: wetForecastRows.length ? round(wetFalsePositiveRows.length / wetForecastRows.length, 3) : null,
     reasons
   };
@@ -541,7 +622,9 @@ function computeIconAdjustment(samples, horizonDays, issueBucket, period, limits
 export function buildBiasModel(historyInput, now = new Date(), options = {}) {
   const { location, limits } = mergeOptions(options);
   const history = normalizeHistory(historyInput, location);
-  const samples = resolvedSamples(history, location);
+  const forecastSource = String(options.forecastSource || 'open-meteo').trim() || 'open-meteo';
+  const forecastModel = String(options.forecastModel || (forecastSource === 'open-meteo' ? 'open-meteo-best-match' : 'unknown')).trim() || 'unknown';
+  const samples = resolvedSamples(history, location, forecastSource, forecastModel);
   const issueBucket = modelIssueBucketForDate(now, location.timezone);
   const adjustments = {};
   const temperatureMetrics = { horizons: {} };
@@ -557,6 +640,7 @@ export function buildBiasModel(historyInput, now = new Date(), options = {}) {
       periods[period] = computeIconAdjustment(samples, horizonDays, issueBucket, period, limits);
       iconMetrics.horizons[horizonDays][period] = {
         samples: periods[period].samples,
+        validationSamples: periods[period].validationSamples,
         rawAccuracy: periods[period].rawAccuracy,
         correctedAccuracy: periods[period].correctedAccuracy,
         wetFalsePositiveRate: periods[period].wetFalsePositiveRate,
@@ -571,8 +655,11 @@ export function buildBiasModel(historyInput, now = new Date(), options = {}) {
 
   return {
     schemaVersion: SCHEMA_VERSION,
+    modelType: 'rolling-holdout',
     generated_at: now.toISOString(),
     location: cloneJson(location),
+    forecastSource,
+    forecastModel,
     issueBucket,
     maxAgeHours: limits.biasMaxAgeHours,
     adjustments,
@@ -659,6 +746,7 @@ export function isUsableBiasModel(model, location = DEFAULT_LOCATION, now = new 
   if (!model || typeof model !== 'object') return false;
   if (Number(model.schemaVersion) !== SCHEMA_VERSION) return false;
   if (!locationsMatch(model.location, location)) return false;
+  if (!String(model.forecastSource || '').trim() || !String(model.forecastModel || '').trim()) return false;
 
   const generatedAt = new Date(model.generated_at).getTime();
   if (!Number.isFinite(generatedAt)) return false;

@@ -178,6 +178,11 @@ For `dashboard.html`:
 - `weather-bias.json` is optional runtime input. Missing, stale, invalid, or
   location-mismatched bias data must fail open to raw forecast display without a
   normal-mode visible error.
+- Forecast bias models are schema version 2 and are tied to the forecast source
+  and model that produced their samples. Temperature corrections use a robust
+  rolling estimate and a recent held-out validation window; icon corrections
+  follow the same validation gate. Incompatible or non-improving corrections
+  must fail open to the raw forecast.
 - Runtime weather JSON requests use cache-busting and prefer a newer same-origin
   generated artifact over retaining an older embedded snapshot when the remote
   generated-data request fails.
