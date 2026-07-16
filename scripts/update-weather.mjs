@@ -172,6 +172,28 @@ function applyOpenWeatherCurrent(weather, current, config) {
   weather.current_source = 'openweather';
 }
 
+function validateOpenWeatherCurrent(weather) {
+  const temperature = Number(weather?.current?.temperature_2m);
+  const apparentTemperature = Number(weather?.current?.apparent_temperature);
+  if (!Number.isFinite(temperature) || !Number.isFinite(apparentTemperature)) {
+    throw new Error('missing current temperature or feels-like temperature');
+  }
+  if (weather.current_source !== 'openweather') {
+    throw new Error('current weather source is not OpenWeather');
+  }
+}
+
+function validateOpenWeatherObservationTime(current, now) {
+  const observationMs = Number(current?.dt) * 1000;
+  if (!Number.isFinite(observationMs)) throw new Error('invalid observation time');
+
+  const ageMs = now.getTime() - observationMs;
+  const maxAgeMs = 90 * 60 * 1000;
+  const maxFutureMs = 15 * 60 * 1000;
+  if (ageMs > maxAgeMs) throw new Error('observation is older than 90 minutes');
+  if (ageMs < -maxFutureMs) throw new Error('observation time is too far in the future');
+}
+
 function resolveConfig(options = {}) {
   const outputDir = options.outputDir
     || process.env.WEATHER_OUTPUT_DIR
@@ -227,7 +249,9 @@ export async function runWeatherUpdate(options = {}) {
         retryDelayMs: options.currentFetchRetryDelayMs ?? 1000,
         requestLabel: 'OpenWeather current weather'
       });
+      if (requireOpenWeather) validateOpenWeatherObservationTime(current, now);
       applyOpenWeatherCurrent(weather, current, config);
+      if (requireOpenWeather) validateOpenWeatherCurrent(weather);
     } catch (error) {
       if (requireOpenWeather) {
         throw new Error(`OpenWeather current weather required: ${error.message}`);

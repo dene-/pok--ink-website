@@ -171,9 +171,10 @@ For `dashboard.html`:
   Pages artifact and overwrites that artifact's root fallback with current
   generated weather. It also embeds that snapshot into the deployed dashboard
   so cold device loads can render weather synchronously, without waiting for a
-  runtime fetch or committing generated updates to `main`. It should not call
-  Open-Meteo directly unless an explicit debug/development URL option enables
-  live weather.
+  runtime fetch or committing generated updates to `main`. Normal operation
+  uses generated OpenWeather current conditions; if all published fallbacks are
+  older than the dashboard emergency threshold, a direct no-key Open-Meteo
+  request may keep the screen current until the next successful workflow run.
 - `weather-bias.json` is optional runtime input. Missing, stale, invalid, or
   location-mismatched bias data must fail open to raw forecast display without a
   normal-mode visible error.

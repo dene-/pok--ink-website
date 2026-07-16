@@ -209,6 +209,16 @@ assert.doesNotThrow(
   'recent generated weather remains usable after a missed overnight update'
 );
 
+assert.throws(
+  () => validateGeneratedWeatherData({
+    current: { temperature_2m: 18.5 },
+    daily: { time: Array.from({ length: 6 }, () => yesterdayIso) },
+    generated_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
+  }, now, 90 * 60 * 1000, true),
+  /stale generated weather\.json/,
+  'published weather older than the emergency threshold is rejected'
+);
+
 assert.equal(typeof parseEmbeddedWeather, 'function', 'embedded weather parser exists');
 const embeddedWeather = parseEmbeddedWeather(JSON.stringify({
   current: { temperature_2m: 18.5 },

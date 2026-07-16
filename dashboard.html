@@ -681,7 +681,12 @@
         liveWeather: false,
         weatherFetch: {
           initialAttempts: 2,
-          refreshAttempts: 1,
+          refreshAttempts: 2,
+          generatedAttempts: 2,
+          emergencyEnabled: true,
+          publishedMaxAgeMinutes: 90,
+          emergencyMaxAgeMinutes: 90,
+          emergencyAttempts: 3,
           timeoutMs: 15000,
           retryDelayMs: 1000,
           cachePrefix: 'e1002.generated.weather.v5',
@@ -1204,7 +1209,7 @@
           timeformat: 'iso8601',
           temperature_unit: 'celsius',
           wind_speed_unit: 'kmh',
-          current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+          current: 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day',
           hourly: 'weather_code,cloud_cover,precipitation_probability,precipitation,rain,showers,is_day',
           daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max'
         });
@@ -1218,9 +1223,24 @@
         if (!Array.isArray(data.daily.time) || data.daily.time.length < 6) throw new Error('missing forecast dates');
       }
 
+      function validateCurrentWeatherData(data) {
+        if (!Number.isFinite(Number(data?.current?.temperature_2m))) throw new Error('missing current temperature');
+      }
+
       function weatherDataTimestamp(data) {
-        const timestamp = new Date(data?.generated_at || '').getTime();
+        const timestamp = new Date(data?.generated_at || data?.current?.time || '').getTime();
         return Number.isFinite(timestamp) ? timestamp : 0;
+      }
+
+      function weatherDataAgeMs(data, now = Date.now()) {
+        const timestamp = weatherDataTimestamp(data);
+        return timestamp ? Math.max(0, now - timestamp) : Infinity;
+      }
+
+      function shouldUseEmergencyWeather(data = activeWeatherData) {
+        if (!CONFIG.weatherFetch.emergencyEnabled) return false;
+        const maxAgeMs = CONFIG.weatherFetch.emergencyMaxAgeMinutes * 60 * 1000;
+        return weatherDataAgeMs(data) > maxAgeMs;
       }
 
       function validateFallbackWeatherData(data) {
@@ -1232,13 +1252,14 @@
         if (firstDay !== todayISOInTimezone() && !isRecentEnough) throw new Error('stale fallback weather.json');
       }
 
-      function validateGeneratedWeatherData(data, now = new Date()) {
+      function validateGeneratedWeatherData(data, now = new Date(), maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000, requireRecentTimestamp = false) {
         validateWeatherData(data);
         const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
         const generatedAt = new Date(data.generated_at).getTime();
-        const maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000;
         const isRecentEnough = Number.isFinite(generatedAt) && now.getTime() - generatedAt <= maxAgeMs;
-        if (firstDay !== todayISOInTimezone() && !isRecentEnough) throw new Error('stale generated weather.json');
+        if (!isRecentEnough && (requireRecentTimestamp || firstDay !== todayISOInTimezone())) {
+          throw new Error('stale generated weather.json');
+        }
       }
 
       function parseEmbeddedWeather(text, now = new Date()) {
@@ -1287,6 +1308,7 @@
 
       function applyWeatherData(data, biasModel = null) {
         validateWeatherData(data);
+        validateCurrentWeatherData(data);
         activeWeatherData = data;
 
         const current = data.current || {};
@@ -1333,21 +1355,24 @@
         if (!text) return text;
         try {
           const parsed = new URL(text, document.baseURI);
-          parsed.searchParams.set('_e1002_refresh', String(Math.floor(Date.now() / 600000)));
+          parsed.searchParams.set('_e1002_refresh', String(Date.now()));
           return parsed.toString();
         } catch (_error) {
           const separator = text.includes('?') ? '&' : '?';
-          return `${text}${separator}_e1002_refresh=${Math.floor(Date.now() / 600000)}`;
+          return `${text}${separator}_e1002_refresh=${Date.now()}`;
         }
       }
 
       async function fetchGeneratedWeather() {
         const data = await fetchJsonWithRetry(freshJsonUrl(CONFIG.generatedWeatherUrl), {
-          attempts: 1,
+          attempts: CONFIG.weatherFetch.generatedAttempts,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
+          retryDelayMs: CONFIG.weatherFetch.retryDelayMs,
           cache: 'no-cache'
         });
-        validateGeneratedWeatherData(data);
+        const maxAgeMs = CONFIG.weatherFetch.publishedMaxAgeMinutes * 60 * 1000;
+        validateGeneratedWeatherData(data, new Date(), maxAgeMs, true);
+        validateCurrentWeatherData(data);
         weatherSource = 'generated';
         return data;
       }
@@ -1383,17 +1408,23 @@
           cache: 'no-cache'
         });
         validateFallbackWeatherData(data);
+        validateCurrentWeatherData(data);
         weatherSource = 'local';
         return data;
       }
 
-      async function fetchRemoteWeather(initial) {
-        const data = await fetchJsonWithRetry(() => buildWeatherUrl(), {
-          attempts: initial ? CONFIG.weatherFetch.initialAttempts : CONFIG.weatherFetch.refreshAttempts,
+      async function fetchRemoteWeather(initial, useEmergencyWeather) {
+        const data = await fetchJsonWithRetry(() => freshJsonUrl(buildWeatherUrl()), {
+          attempts: useEmergencyWeather
+            ? CONFIG.weatherFetch.emergencyAttempts
+            : initial ? CONFIG.weatherFetch.initialAttempts : CONFIG.weatherFetch.refreshAttempts,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
-          retryDelayMs: CONFIG.weatherFetch.retryDelayMs
+          retryDelayMs: CONFIG.weatherFetch.retryDelayMs,
+          cache: 'no-store'
         });
-        weatherSource = 'remote';
+        validateWeatherData(data);
+        validateCurrentWeatherData(data);
+        weatherSource = useEmergencyWeather ? 'emergency-remote' : 'remote';
         return data;
       }
 
@@ -1478,29 +1509,42 @@
             if (generated.biasError && CONFIG.debug) showError(`Bias: ${generated.biasError.message}`);
           } catch (generatedError) {
             const cacheApplied = applyCachedWeather();
-            if (cacheApplied) {
+            if (cacheApplied && !shouldUseEmergencyWeather()) {
               if (CONFIG.debug) showError(`Weather: cache; generated ${generatedError.message}`);
               return;
             }
 
             const previousSource = weatherSource;
+            let localError = null;
             try {
-              data = await fetchLocalWeather();
-              if (weatherHasData && weatherDataTimestamp(data) < weatherDataTimestamp(activeWeatherData)) {
+              const localData = await fetchLocalWeather();
+              const localIsOlder = weatherHasData
+                && weatherDataTimestamp(localData) < weatherDataTimestamp(activeWeatherData);
+              if (localIsOlder) {
                 weatherSource = previousSource;
                 if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local fallback is older`);
-                return;
+              } else if (!shouldUseEmergencyWeather(localData)) {
+                data = localData;
+                if (CONFIG.debug) showError(`Weather: local; generated ${generatedError.message}`);
+              } else {
+                weatherSource = previousSource;
               }
-              if (CONFIG.debug) showError(`Weather: local; generated ${generatedError.message}`);
-            } catch (localError) {
+            } catch (error) {
+              localError = error;
               weatherSource = previousSource;
-              if (weatherHasData) {
-                if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError.message}`);
+            }
+
+            if (!data) {
+              const useEmergencyWeather = shouldUseEmergencyWeather();
+              if (weatherHasData && !CONFIG.liveWeather && !useEmergencyWeather) {
+                if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError?.message || 'fallback is older'}`);
                 return;
               }
-              if (!CONFIG.liveWeather) throw new Error(`generated ${generatedError.message}; local ${localError.message}`);
-              data = await fetchRemoteWeather(initial);
-              if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError.message}`);
+              if (!CONFIG.liveWeather && !useEmergencyWeather) {
+                throw new Error(`generated ${generatedError.message}; local ${localError?.message || 'fallback is older'}`);
+              }
+              data = await fetchRemoteWeather(initial, useEmergencyWeather);
+              if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError?.message || 'fallback is older'}`);
             }
           }
           applyWeatherData(data, biasModel);

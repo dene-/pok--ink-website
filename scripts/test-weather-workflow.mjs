@@ -34,11 +34,16 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(workflow, /REQUIRE_OPENWEATHER_API_KEY: 'true'/);
 
   const updateWeather = dashboard.slice(dashboard.indexOf('async function updateWeather'));
-  const localFallback = updateWeather.indexOf('data = await fetchLocalWeather()');
-  const existingDataFallback = updateWeather.indexOf('if (weatherHasData)');
+  const localFallback = updateWeather.indexOf('fetchLocalWeather()');
+  const existingDataFallback = updateWeather.indexOf('if (weatherHasData &&');
   assert.ok(localFallback >= 0, 'runtime has a same-origin weather fallback');
   assert.ok(existingDataFallback >= 0, 'runtime preserves usable existing weather data');
   assert.ok(localFallback < existingDataFallback, 'same-origin fallback is attempted before preserving an old snapshot');
+  assert.match(dashboard, /apparent_temperature/);
+  assert.match(dashboard, /publishedMaxAgeMinutes: 90/);
+  assert.match(dashboard, /emergencyMaxAgeMinutes: 90/);
+  assert.match(dashboard, /freshJsonUrl/);
+  assert.match(dashboard, /fetchRemoteWeather\(initial, useEmergencyWeather\)/);
 
   assert.doesNotMatch(workflow, /^\s*git add weather\.json\s*$/m);
   assert.doesNotMatch(workflow, /git push origin HEAD:main/);

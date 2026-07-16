@@ -442,6 +442,76 @@ test('weather update runner fails instead of silently publishing forecast curren
   }
 });
 
+test('weather update runner rejects OpenWeather current data without feels-like temperature', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-openweather-incomplete-'));
+
+  try {
+    await assert.rejects(
+      runWeatherUpdate({
+        outputDir: dir,
+        openWeatherApiKey: 'test-secret',
+        requireOpenWeather: true,
+        fetchRetryDelayMs: 0,
+        currentFetchRetryDelayMs: 0,
+        now: new Date('2026-05-29T04:05:00Z'),
+        fetchImpl: async (url) => {
+          if (String(url).includes('openweathermap.org')) {
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ main: { temp: 32 }, dt: 1780027500 })
+            };
+          }
+          return {
+            ok: true,
+            status: 200,
+            json: async () => buildForecast('2026-05-29')
+          };
+        },
+        log: () => {}
+      }),
+      /OpenWeather current weather required: missing current temperature or feels-like temperature/
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('weather update runner rejects stale OpenWeather observations', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-openweather-stale-'));
+
+  try {
+    await assert.rejects(
+      runWeatherUpdate({
+        outputDir: dir,
+        openWeatherApiKey: 'test-secret',
+        requireOpenWeather: true,
+        fetchRetryDelayMs: 0,
+        currentFetchRetryDelayMs: 0,
+        now: new Date('2026-05-29T04:05:00Z'),
+        fetchImpl: async (url) => {
+          if (String(url).includes('openweathermap.org')) {
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ main: { temp: 32, feels_like: 39 }, dt: 1779998700 })
+            };
+          }
+          return {
+            ok: true,
+            status: 200,
+            json: async () => buildForecast('2026-05-29')
+          };
+        },
+        log: () => {}
+      }),
+      /OpenWeather current weather required: observation is older than 90 minutes/
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('weather update runner retries a transient forecast request failure', async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-retry-'));
   let attempts = 0;
