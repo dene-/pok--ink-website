@@ -212,6 +212,13 @@ export async function runWeatherUpdate(options = {}) {
   weather.source_url = forecastUrl;
 
   const openWeatherApiKey = String(options.openWeatherApiKey ?? process.env.OPENWEATHER_API_KEY ?? '').trim();
+  const requireOpenWeather = options.requireOpenWeather
+    ?? ['1', 'true', 'yes', 'on'].includes(String(process.env.REQUIRE_OPENWEATHER_API_KEY || '').trim().toLowerCase());
+
+  if (requireOpenWeather && !openWeatherApiKey) {
+    throw new Error('OPENWEATHER_API_KEY is required for current weather');
+  }
+
   if (openWeatherApiKey) {
     try {
       const openWeatherUrl = buildOpenWeatherUrl(config, openWeatherApiKey);
@@ -222,6 +229,9 @@ export async function runWeatherUpdate(options = {}) {
       });
       applyOpenWeatherCurrent(weather, current, config);
     } catch (error) {
+      if (requireOpenWeather) {
+        throw new Error(`OpenWeather current weather required: ${error.message}`);
+      }
       log(`OpenWeather current weather unavailable; using Open-Meteo current: ${error.message}`);
     }
   }

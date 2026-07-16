@@ -388,6 +388,60 @@ test('weather update runner overlays current conditions from OpenWeather', async
   }
 });
 
+test('weather update runner can require OpenWeather current conditions', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-openweather-required-'));
+
+  try {
+    await assert.rejects(
+      runWeatherUpdate({
+        outputDir: dir,
+        requireOpenWeather: true,
+        fetchImpl: async (url) => ({
+          ok: true,
+          status: 200,
+          json: async () => buildForecast('2026-05-29')
+        }),
+        now: new Date('2026-05-29T04:05:00Z'),
+        log: () => {}
+      }),
+      /OPENWEATHER_API_KEY is required/
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('weather update runner fails instead of silently publishing forecast current data when OpenWeather fails', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-openweather-failure-'));
+
+  try {
+    await assert.rejects(
+      runWeatherUpdate({
+        outputDir: dir,
+        openWeatherApiKey: 'test-secret',
+        requireOpenWeather: true,
+        fetchRetryDelayMs: 0,
+        currentFetchRetryDelayMs: 0,
+        now: new Date('2026-05-29T04:05:00Z'),
+        fetchImpl: async (url) => {
+          if (String(url).includes('openweathermap.org')) {
+            return { ok: false, status: 401, json: async () => ({}) };
+          }
+          return {
+            ok: true,
+            status: 200,
+            json: async () => buildForecast('2026-05-29')
+          };
+        },
+        log: () => {}
+      }),
+      /OpenWeather current weather required: OpenWeather current weather HTTP 401/
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('weather update runner retries a transient forecast request failure', async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-retry-'));
   let attempts = 0;

@@ -711,6 +711,7 @@
 
       let weatherHasData = false;
       let weatherSource = 'none';
+      let activeWeatherData = null;
       let deviceHasData = false;
 
       const DRY_PERIOD_TYPES = new Set(['sun', 'cloud', 'fog']);
@@ -1217,6 +1218,11 @@
         if (!Array.isArray(data.daily.time) || data.daily.time.length < 6) throw new Error('missing forecast dates');
       }
 
+      function weatherDataTimestamp(data) {
+        const timestamp = new Date(data?.generated_at || '').getTime();
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      }
+
       function validateFallbackWeatherData(data) {
         validateWeatherData(data);
         const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
@@ -1281,6 +1287,7 @@
 
       function applyWeatherData(data, biasModel = null) {
         validateWeatherData(data);
+        activeWeatherData = data;
 
         const current = data.current || {};
         const daily = data.daily || {};
@@ -1321,8 +1328,21 @@
         weatherHasData = true;
       }
 
+      function freshJsonUrl(url) {
+        const text = String(url || '');
+        if (!text) return text;
+        try {
+          const parsed = new URL(text, document.baseURI);
+          parsed.searchParams.set('_e1002_refresh', String(Math.floor(Date.now() / 600000)));
+          return parsed.toString();
+        } catch (_error) {
+          const separator = text.includes('?') ? '&' : '?';
+          return `${text}${separator}_e1002_refresh=${Math.floor(Date.now() / 600000)}`;
+        }
+      }
+
       async function fetchGeneratedWeather() {
-        const data = await fetchJsonWithRetry(CONFIG.generatedWeatherUrl, {
+        const data = await fetchJsonWithRetry(freshJsonUrl(CONFIG.generatedWeatherUrl), {
           attempts: 1,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
           cache: 'no-cache'
@@ -1333,7 +1353,7 @@
       }
 
       async function fetchWeatherBias() {
-        const data = await fetchJsonWithRetry(CONFIG.generatedBiasUrl, {
+        const data = await fetchJsonWithRetry(freshJsonUrl(CONFIG.generatedBiasUrl), {
           attempts: 1,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
           cache: 'no-cache'
@@ -1357,7 +1377,7 @@
       }
 
       async function fetchLocalWeather() {
-        const data = await fetchJsonWithRetry(CONFIG.localWeatherUrl, {
+        const data = await fetchJsonWithRetry(freshJsonUrl(CONFIG.localWeatherUrl), {
           attempts: 1,
           timeoutMs: CONFIG.weatherFetch.timeoutMs,
           cache: 'no-cache'
@@ -1410,6 +1430,9 @@
           const hasWeatherData = cached.data && cached.data.daily && Array.isArray(cached.data.daily.time);
 
           if (!isFreshEnough || !hasWeatherData) return false;
+          if (weatherHasData && weatherDataTimestamp(cached.data) < weatherDataTimestamp(activeWeatherData)) {
+            return false;
+          }
 
           const biasModel = isUsableBiasModel(cached.biasModel) ? cached.biasModel : null;
           applyWeatherData(cached.data, biasModel);
@@ -1459,15 +1482,22 @@
               if (CONFIG.debug) showError(`Weather: cache; generated ${generatedError.message}`);
               return;
             }
-            if (weatherHasData) {
-              if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}`);
-              return;
-            }
 
+            const previousSource = weatherSource;
             try {
               data = await fetchLocalWeather();
+              if (weatherHasData && weatherDataTimestamp(data) < weatherDataTimestamp(activeWeatherData)) {
+                weatherSource = previousSource;
+                if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local fallback is older`);
+                return;
+              }
               if (CONFIG.debug) showError(`Weather: local; generated ${generatedError.message}`);
             } catch (localError) {
+              weatherSource = previousSource;
+              if (weatherHasData) {
+                if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError.message}`);
+                return;
+              }
               if (!CONFIG.liveWeather) throw new Error(`generated ${generatedError.message}; local ${localError.message}`);
               data = await fetchRemoteWeather(initial);
               if (CONFIG.debug) showError(`Weather: ${weatherSource}; generated ${generatedError.message}; local ${localError.message}`);

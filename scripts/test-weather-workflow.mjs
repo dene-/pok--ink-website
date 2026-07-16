@@ -8,6 +8,7 @@ const workflowPath = new URL('../.github/workflows/update-weather.yml', import.m
 
 test('weather workflow deploys a current same-origin fallback through a Pages artifact', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
+  const dashboard = await readFile(new URL('../dashboard.html', import.meta.url), 'utf8');
   const artifactStep = workflow.indexOf('- name: Prepare Pages artifact');
   const generatedBranchStep = workflow.indexOf('- name: Publish generated weather branch');
 
@@ -25,6 +26,19 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(artifact, /path: \$\{\{ runner\.temp \}\}\/pages-site/);
   assert.match(workflow, /deploy-pages:\s*\n\s+needs: update-weather/);
   assert.match(workflow, /uses: actions\/deploy-pages@v5/);
+  assert.match(workflow, /- cron: '17 \* \* \* \*'/);
+  assert.match(workflow, /- cron: '47 \* \* \* \*'/);
+  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /update-weather:\s*\n\s+runs-on: ubuntu-latest\s*\n\s+timeout-minutes: 10/);
+  assert.match(workflow, /deploy-pages:\s*\n\s+needs: update-weather\s*\n\s+timeout-minutes: 10/);
+  assert.match(workflow, /REQUIRE_OPENWEATHER_API_KEY: 'true'/);
+
+  const updateWeather = dashboard.slice(dashboard.indexOf('async function updateWeather'));
+  const localFallback = updateWeather.indexOf('data = await fetchLocalWeather()');
+  const existingDataFallback = updateWeather.indexOf('if (weatherHasData)');
+  assert.ok(localFallback >= 0, 'runtime has a same-origin weather fallback');
+  assert.ok(existingDataFallback >= 0, 'runtime preserves usable existing weather data');
+  assert.ok(localFallback < existingDataFallback, 'same-origin fallback is attempted before preserving an old snapshot');
 
   assert.doesNotMatch(workflow, /^\s*git add weather\.json\s*$/m);
   assert.doesNotMatch(workflow, /git push origin HEAD:main/);

@@ -6,7 +6,9 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    # Two non-top-of-hour attempts give each hourly update a retry window.
+    - cron: '17 * * * *'
+    - cron: '47 * * * *'
 
 permissions:
   contents: write
@@ -15,11 +17,12 @@ permissions:
 
 concurrency:
   group: update-weather-data
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update-weather:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -41,6 +44,7 @@ jobs:
       - name: Generate weather data
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          REQUIRE_OPENWEATHER_API_KEY: 'true'
           WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
           WEATHER_HISTORY_PATH: ${{ runner.temp }}/weather-bias-history.json
         run: node scripts/update-weather.mjs
@@ -82,6 +86,7 @@ jobs:
 
   deploy-pages:
     needs: update-weather
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
