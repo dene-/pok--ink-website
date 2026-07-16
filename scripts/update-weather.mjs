@@ -42,6 +42,17 @@ export function buildWeatherUrl(config = CONFIG) {
   return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
 }
 
+export function buildOpenWeatherUrl(config = CONFIG, apiKey = '') {
+  const params = new URLSearchParams({
+    lat: String(config.latitude),
+    lon: String(config.longitude),
+    appid: String(apiKey),
+    units: 'metric'
+  });
+
+  return `https://api.openweathermap.org/data/2.5/weather?${params.toString()}`;
+}
+
 export function buildArchiveUrl(isoDate, config = CONFIG) {
   const params = new URLSearchParams({
     latitude: String(config.latitude),
@@ -80,12 +91,13 @@ async function readJsonIfExists(filePath) {
 async function fetchJson(fetchImpl, url, options = {}) {
   const attempts = Math.max(1, Number(options.attempts) || 1);
   const retryDelayMs = Math.max(0, Number(options.retryDelayMs) || 0);
+  const requestLabel = options.requestLabel || url;
   let lastError;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       const response = await fetchImpl(url, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`${url} HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`${requestLabel} HTTP ${response.status}`);
       return await response.json();
     } catch (error) {
       lastError = error;
@@ -96,6 +108,51 @@ async function fetchJson(fetchImpl, url, options = {}) {
   }
 
   throw lastError;
+}
+
+function localDateTimeFromUnixSeconds(value, timezone) {
+  const date = new Date(Number(value) * 1000);
+  if (!Number.isFinite(date.getTime())) throw new Error('OpenWeather returned an invalid observation time');
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date).reduce((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function applyOpenWeatherCurrent(weather, current, config) {
+  const temperature = Number(current?.main?.temp);
+  if (!Number.isFinite(temperature)) throw new Error('OpenWeather returned no current temperature');
+
+  weather.current.temperature_2m = temperature;
+  weather.current.time = localDateTimeFromUnixSeconds(current.dt, config.timezone);
+
+  const humidity = Number(current?.main?.humidity);
+  if (Number.isFinite(humidity)) weather.current.relative_humidity_2m = humidity;
+
+  const windSpeedMs = Number(current?.wind?.speed);
+  if (Number.isFinite(windSpeedMs)) weather.current.wind_speed_10m = windSpeedMs * 3.6;
+
+  const windDirection = Number(current?.wind?.deg);
+  if (Number.isFinite(windDirection)) weather.current.wind_direction_10m = windDirection;
+
+  const observationDate = new Date(Number(current.dt) * 1000);
+  const sunrise = Number(current?.sys?.sunrise) * 1000;
+  const sunset = Number(current?.sys?.sunset) * 1000;
+  weather.current.is_day = Number.isFinite(sunrise) && Number.isFinite(sunset)
+    ? (observationDate.getTime() >= sunrise && observationDate.getTime() < sunset ? 1 : 0)
+    : weather.current.is_day;
+  weather.current_source = 'openweather';
 }
 
 function resolveConfig(options = {}) {
@@ -129,12 +186,28 @@ export async function runWeatherUpdate(options = {}) {
   const forecastUrl = buildWeatherUrl(config);
   const weather = await fetchJson(fetchImpl, forecastUrl, {
     attempts: Number(options.fetchAttempts) || 3,
-    retryDelayMs: options.fetchRetryDelayMs ?? 1000
+    retryDelayMs: options.fetchRetryDelayMs ?? 1000,
+    requestLabel: 'Open-Meteo forecast'
   });
 
   validateWeatherData(weather);
   weather.generated_at = now.toISOString();
   weather.source_url = forecastUrl;
+
+  const openWeatherApiKey = String(options.openWeatherApiKey ?? process.env.OPENWEATHER_API_KEY ?? '').trim();
+  if (openWeatherApiKey) {
+    try {
+      const openWeatherUrl = buildOpenWeatherUrl(config, openWeatherApiKey);
+      const current = await fetchJson(fetchImpl, openWeatherUrl, {
+        attempts: Number(options.currentFetchAttempts) || 2,
+        retryDelayMs: options.currentFetchRetryDelayMs ?? 1000,
+        requestLabel: 'OpenWeather current weather'
+      });
+      applyOpenWeatherCurrent(weather, current, config);
+    } catch (error) {
+      log(`OpenWeather current weather unavailable; using Open-Meteo current: ${error.message}`);
+    }
+  }
 
   await mkdir(config.outputDir, { recursive: true });
 

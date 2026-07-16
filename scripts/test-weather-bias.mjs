@@ -330,6 +330,58 @@ test('weather update runner writes weather, history, and bias files with injecte
   }
 });
 
+test('weather update runner overlays current conditions from OpenWeather', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-openweather-'));
+  const urls = [];
+
+  try {
+    const forecast = buildForecast('2026-05-29');
+    await runWeatherUpdate({
+      outputDir: dir,
+      openWeatherApiKey: 'test-secret',
+      fetchRetryDelayMs: 0,
+      currentFetchRetryDelayMs: 0,
+      now: new Date('2026-05-29T04:05:00Z'),
+      fetchImpl: async (url) => {
+        const requestUrl = String(url);
+        urls.push(requestUrl);
+        if (requestUrl.includes('openweathermap.org')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              main: { temp: 32, humidity: 58 },
+              wind: { speed: 5, deg: 210 },
+              dt: 1780034700
+            })
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => structuredClone(forecast)
+        };
+      },
+      log: () => {}
+    });
+
+    const weather = JSON.parse(await readFile(path.join(dir, 'weather.json'), 'utf8'));
+    assert.equal(urls.filter((url) => url.includes('openweathermap.org')).length, 1);
+    const openWeatherUrl = urls.find((url) => url.includes('openweathermap.org'));
+    assert.match(openWeatherUrl, /[?&]lat=41\.3474/);
+    assert.match(openWeatherUrl, /[?&]lon=2\.0431/);
+    assert.match(openWeatherUrl, /appid=test-secret/);
+    assert.equal(weather.current.temperature_2m, 32);
+    assert.equal(weather.current.time, '2026-05-29T08:05');
+    assert.equal(weather.current.relative_humidity_2m, 58);
+    assert.equal(weather.current.wind_speed_10m, 18);
+    assert.equal(weather.current.wind_direction_10m, 210);
+    assert.equal(weather.current_source, 'openweather');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('weather update runner retries a transient forecast request failure', async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'pok-weather-retry-'));
   let attempts = 0;

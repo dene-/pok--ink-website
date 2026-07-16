@@ -40,6 +40,7 @@ jobs:
 
       - name: Generate weather data
         env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
           WEATHER_HISTORY_PATH: ${{ runner.temp }}/weather-bias-history.json
         run: node scripts/update-weather.mjs
