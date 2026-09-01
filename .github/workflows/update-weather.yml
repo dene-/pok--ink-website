@@ -49,6 +49,12 @@ jobs:
           WEATHER_HISTORY_PATH: ${{ runner.temp }}/weather-bias-history.json
         run: node scripts/update-weather.mjs
 
+      - name: Generate SenseCraft sensor snapshot
+        env:
+          SENSECRAFT_API_KEY: ${{ secrets.SENSECRAFT_API_KEY }}
+          SENSOR_OUTPUT_DIR: ${{ runner.temp }}/weather-data
+        run: node scripts/update-sensor.mjs
+
       - name: Publish generated weather branch
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -59,13 +65,14 @@ jobs:
           cp "$WEATHER_OUTPUT_DIR"/weather.json "$RUNNER_TEMP/weather-data-branch/weather.json"
           cp "$WEATHER_OUTPUT_DIR"/weather-bias.json "$RUNNER_TEMP/weather-data-branch/weather-bias.json"
           cp "$WEATHER_OUTPUT_DIR"/weather-bias-history.json "$RUNNER_TEMP/weather-data-branch/weather-bias-history.json"
+          cp "$WEATHER_OUTPUT_DIR"/sensor.json "$RUNNER_TEMP/weather-data-branch/sensor.json"
 
           cd "$RUNNER_TEMP/weather-data-branch"
           git init
           git checkout -b weather-data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add weather.json weather-bias.json weather-bias-history.json
+          git add weather.json weather-bias.json weather-bias-history.json sensor.json
           git commit -m "chore: update generated weather data"
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin HEAD:weather-data
@@ -74,6 +81,7 @@ jobs:
         env:
           PAGES_OUTPUT_DIR: ${{ runner.temp }}/pages-site
           WEATHER_PATH: ${{ runner.temp }}/weather-data/weather.json
+          SENSOR_PATH: ${{ runner.temp }}/weather-data/sensor.json
         run: node scripts/prepare-pages-site.mjs
 
       - name: Configure GitHub Pages

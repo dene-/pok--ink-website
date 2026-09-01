@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --test scripts/test-weather-bias.mjs && node scripts/test-weather-periods.mjs && node --test scripts/test-prepare-pages-site.mjs && node --test scripts/test-weather-workflow.mjs && node --test scripts/test-preprocess-photos.mjs",
+    "test": "node --test scripts/test-weather-bias.mjs && node scripts/test-weather-periods.mjs && node --test scripts/test-prepare-pages-site.mjs && node --test scripts/test-update-sensor.mjs && node --test scripts/test-weather-workflow.mjs && node --test scripts/test-preprocess-photos.mjs",
     "update:weather": "node scripts/update-weather.mjs",
     "preprocess:photos": "node scripts/preprocess-photos.mjs"
   },

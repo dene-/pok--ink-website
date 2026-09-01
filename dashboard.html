@@ -667,6 +667,7 @@
     </div>
 
     <script id="weatherBootstrap" type="application/json"></script>
+    <script id="sensorBootstrap" type="application/json"></script>
     <script type="module">
       'use strict';
 
@@ -682,7 +683,9 @@
 
         generatedWeatherUrl: 'https://raw.githubusercontent.com/dene-/pok--ink-website/weather-data/weather.json',
         generatedBiasUrl: 'https://raw.githubusercontent.com/dene-/pok--ink-website/weather-data/weather-bias.json',
+        generatedSensorUrl: 'https://raw.githubusercontent.com/dene-/pok--ink-website/weather-data/sensor.json',
         localWeatherUrl: './weather.json',
+        localSensorUrl: './sensor.json',
         weatherUrl: 'https://api.open-meteo.com/v1/forecast',
         liveWeather: false,
         weatherFetch: {
@@ -1185,6 +1188,32 @@
         setText('insideHumidity', CONFIG.device.fallback.insideHumidity);
       }
 
+      function applySensorData(sensor) {
+        setText('battery', fixed(sensor.battery, 0));
+        setText('insideTemp', fixed(sensor.insideTemp, 1));
+        setText('insideHumidity', fixed(sensor.insideHumidity, 1));
+        deviceHasData = true;
+        window.__E1002_DEVICE_STATUS__ = 'ok';
+      }
+
+      function parseEmbeddedSensor(text) {
+        if (!text) return null;
+        try {
+          return parseSensorData(JSON.parse(text));
+        } catch (_error) {
+          return null;
+        }
+      }
+
+      function parseSensorData(data) {
+        if (!data || typeof data !== 'object') throw new Error('empty sensor snapshot');
+        const sensor = data.result ? parseDeviceData(data) : data;
+        if (!['battery', 'insideTemp', 'insideHumidity'].every((key) => Number.isFinite(Number(sensor[key])))) {
+          throw new Error('missing sensor fields');
+        }
+        return sensor;
+      }
+
       function selectPhotoUrl() {
         if (CONFIG.photoUrl) return CONFIG.photoUrl;
         const photoNumber = String(Math.floor(Math.random() * CONFIG.photoCount) + 1).padStart(3, '0');
@@ -1467,6 +1496,15 @@
         return data;
       }
 
+      async function fetchSensorSnapshot(url) {
+        return parseSensorData(await fetchJsonWithRetry(freshJsonUrl(url), {
+          attempts: 2,
+          timeoutMs: 10000,
+          cache: 'no-cache',
+          credentials: 'omit'
+        }));
+      }
+
       async function fetchRemoteWeather(initial, useEmergencyWeather) {
         const data = await fetchJsonWithRetry(() => freshJsonUrl(buildWeatherUrl()), {
           attempts: useEmergencyWeather
@@ -1533,6 +1571,13 @@
         if (!data) return false;
         applyWeatherData(data);
         weatherSource = 'embedded';
+        return true;
+      }
+
+      function applyEmbeddedSensor() {
+        const sensor = parseEmbeddedSensor($('sensorBootstrap')?.textContent);
+        if (!sensor) return false;
+        applySensorData(sensor);
         return true;
       }
 
@@ -1618,15 +1663,23 @@
           return;
         }
 
-        if (!CONFIG.device.apiKey) {
-          window.__E1002_DEVICE_STATUS__ = 'missing_api_key';
-          if (!deviceHasData) applyDeviceFallback();
-          return;
-        }
-
         const initial = Boolean(options.initial);
         window.__E1002_DEVICE_STATUS__ = 'loading';
         try {
+          try {
+            const generated = await fetchSensorSnapshot(CONFIG.generatedSensorUrl);
+            applySensorData(generated);
+            return;
+          } catch (generatedError) {
+            try {
+              const local = await fetchSensorSnapshot(CONFIG.localSensorUrl);
+              applySensorData(local);
+              return;
+            } catch (_localError) {
+              if (!CONFIG.device.apiKey) throw generatedError;
+            }
+          }
+
           const data = await fetchJsonWithRetry(() => freshJsonUrl(CONFIG.device.url), {
             attempts: initial ? CONFIG.device.fetch.initialAttempts : CONFIG.device.fetch.refreshAttempts,
             timeoutMs: CONFIG.device.fetch.timeoutMs,
@@ -1639,12 +1692,7 @@
             headers: { 'api-key': CONFIG.device.apiKey }
           });
           const { battery, insideTemp, insideHumidity } = parseDeviceData(data);
-
-          setText('battery', fixed(battery, 0));
-          setText('insideTemp', fixed(insideTemp, 1));
-          setText('insideHumidity', fixed(insideHumidity, 1));
-          deviceHasData = true;
-          window.__E1002_DEVICE_STATUS__ = 'ok';
+          applySensorData({ battery, insideTemp, insideHumidity });
         } catch (error) {
           if (!deviceHasData) applyDeviceFallback();
           window.__E1002_DEVICE_STATUS__ = `error: ${error.message}`;
@@ -1661,6 +1709,7 @@
         setHTML('windIcon', windSvg());
         applyDeviceFallback();
         await applyInitialWeatherFallback();
+        applyEmbeddedSensor();
 
         // This first await is intentional. The script is type="module", so top-level
         // await keeps the first page load from completing until the initial weather

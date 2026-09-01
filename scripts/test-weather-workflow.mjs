@@ -32,6 +32,10 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(workflow, /update-weather:\s*\n\s+runs-on: ubuntu-latest\s*\n\s+timeout-minutes: 10/);
   assert.match(workflow, /deploy-pages:\s*\n\s+needs: update-weather\s*\n\s+timeout-minutes: 10/);
   assert.match(workflow, /REQUIRE_OPENWEATHER_API_KEY: 'true'/);
+  assert.match(workflow, /SENSECRAFT_API_KEY: \$\{\{ secrets\.SENSECRAFT_API_KEY \}\}/);
+  assert.match(workflow, /node scripts\/update-sensor\.mjs/);
+  assert.match(workflow, /cp \"\$WEATHER_OUTPUT_DIR\"\/sensor\.json/);
+  assert.match(workflow, /SENSOR_PATH: \$\{\{ runner\.temp \}\}\/weather-data\/sensor\.json/);
 
   const updateWeather = dashboard.slice(dashboard.indexOf('async function updateWeather'));
   const localFallback = updateWeather.indexOf('fetchLocalWeather()');
@@ -48,6 +52,8 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(dashboard, /\.forecastDate \{[\s\S]*?font-family: var\(--font\);[\s\S]*?font-size: 16px;[\s\S]*?line-height: 16px;/);
   assert.match(dashboard, /\.windValue \{[\s\S]*?font-size: 16px;[\s\S]*?max-width: 100%;/);
   assert.match(dashboard, /function parseDeviceData\(data\)/);
+  assert.match(dashboard, /id="sensorBootstrap"/);
+  assert.match(dashboard, /generatedSensorUrl/);
   assert.match(dashboard, /sensor API \$\{data\.code\}/);
   assert.match(dashboard, /freshJsonUrl\(CONFIG\.device\.url\)/);
   assert.match(dashboard, /'api-key'/);
