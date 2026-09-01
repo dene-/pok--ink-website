@@ -149,9 +149,9 @@
 
       .forecastDate {
         font-family: var(--font-compact);
-        font-size: 8px;
+        font-size: 16px;
         font-weight: 400;
-        line-height: 8px;
+        line-height: 16px;
         letter-spacing: 0;
         white-space: nowrap;
       }
@@ -730,7 +730,7 @@
 
       function queryParamsFromSearchAndHash() {
         const params = new URLSearchParams(window.location.search);
-        const hash = window.location.hash ? window.location.hash.replace(/^#/, '') : '';
+        const hash = window.location.hash ? window.location.hash.replace(/^#\??/, '') : '';
         const hashParams = new URLSearchParams(hash);
         for (const [key, value] of hashParams.entries()) {
           if (!params.has(key)) params.set(key, value);
@@ -749,7 +749,7 @@
       function applyUrlConfig() {
         const params = queryParamsFromSearchAndHash();
 
-        const apiKey = firstParam(params, ['apikey', 'apiKey', 'api_key', 'sensecraftApiKey', 'sensecraft_key', 'key']);
+        const apiKey = firstParam(params, ['apikey', 'apiKey', 'api-key', 'api_key', 'sensecraftApiKey', 'sensecraft_key', 'key']);
         if (apiKey) {
           // URLSearchParams decodes + as a space. Most pasted API keys should be URL-encoded,
           // but this restores raw plus signs for keys pasted without encoding.
@@ -1158,6 +1158,25 @@
 
       function nestedValue(obj, path) {
         return String(path).split('.').reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);
+      }
+
+      function parseDeviceData(data) {
+        if (!data || typeof data !== 'object') throw new Error('empty sensor response');
+
+        const code = Number(data.code);
+        if (Number.isFinite(code) && code !== 200 && code !== 0) {
+          throw new Error(`sensor API ${data.code}: ${data.message || data.msg || 'request rejected'}`);
+        }
+
+        const result = data.result || data.data || data;
+        const battery = nestedValue(result, 'battery.level');
+        const insideTemp = nestedValue(result, 'sensor.temp');
+        const insideHumidity = nestedValue(result, 'sensor.humidity');
+        const values = { battery, insideTemp, insideHumidity };
+        if (!Object.values(values).every((value) => Number.isFinite(Number(value)))) {
+          throw new Error('missing sensor fields');
+        }
+        return values;
       }
 
       function applyDeviceFallback() {
@@ -1616,13 +1635,7 @@
             credentials: 'omit',
             headers: { 'Api-Key': CONFIG.device.apiKey }
           });
-          const battery = nestedValue(data, 'result.battery.level');
-          const insideTemp = nestedValue(data, 'result.sensor.temp');
-          const insideHumidity = nestedValue(data, 'result.sensor.humidity');
-
-          if (![battery, insideTemp, insideHumidity].every((value) => Number.isFinite(Number(value)))) {
-            throw new Error('missing sensor fields');
-          }
+          const { battery, insideTemp, insideHumidity } = parseDeviceData(data);
 
           setText('battery', fixed(battery, 0));
           setText('insideTemp', fixed(insideTemp, 1));

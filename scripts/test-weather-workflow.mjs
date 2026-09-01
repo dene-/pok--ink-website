@@ -45,8 +45,11 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(dashboard, /id="photoImage"/);
   assert.doesNotMatch(dashboard, /id="photoFrame"/);
   assert.match(dashboard, /photoPanel img\.photoFallback/);
-  assert.match(dashboard, /\.forecastDate \{[\s\S]*?font-family: var\(--font-compact\);[\s\S]*?font-size: 8px;/);
+  assert.match(dashboard, /\.forecastDate \{[\s\S]*?font-family: var\(--font-compact\);[\s\S]*?font-size: 16px;[\s\S]*?line-height: 16px;/);
   assert.match(dashboard, /\.windValue \{[\s\S]*?font-size: 16px;[\s\S]*?max-width: 100%;/);
+  assert.match(dashboard, /function parseDeviceData\(data\)/);
+  assert.match(dashboard, /sensor API \$\{data\.code\}/);
+  assert.match(dashboard, /'api-key'/);
   assert.match(dashboard, /publishedMaxAgeMinutes: 90/);
   assert.match(dashboard, /emergencyMaxAgeMinutes: 90/);
   assert.match(dashboard, /freshJsonUrl/);
