@@ -119,12 +119,18 @@
         background: var(--paper);
       }
 
-      .photoPanel iframe {
+      .photoPanel img {
         display: block;
         width: 100%;
         height: 100%;
         border: 0;
         background: var(--paper);
+        object-fit: cover;
+        object-position: center center;
+      }
+
+      .photoPanel img.photoFallback {
+        object-fit: contain;
       }
 
       .forecastGrid {
@@ -142,9 +148,10 @@
       }
 
       .forecastDate {
-        font-size: 16px;
+        font-family: var(--font-compact);
+        font-size: 8px;
         font-weight: 400;
-        line-height: 16px;
+        line-height: 8px;
         letter-spacing: 0;
         white-space: nowrap;
       }
@@ -461,11 +468,13 @@
       }
 
       .windValue {
-        font-size: 32px;
+        font-size: 16px;
         font-weight: 400;
-        line-height: 32px;
+        line-height: 16px;
         letter-spacing: 0;
         white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
       }
 
       .windUnit {
@@ -544,11 +553,7 @@
 
       <main class="leftColumn" aria-label="Photo and forecast">
         <section class="panel photoPanel" aria-label="Photo">
-          <iframe
-            id="photoFrame"
-            title="Photo iframe"
-            referrerpolicy="no-referrer"
-          ></iframe>
+          <img id="photoImage" src="./assets/photos/iceland-001.png" alt="Random Iceland landscape" decoding="sync" />
         </section>
 
         <section class="forecastGrid" aria-label="Five day forecast">
@@ -666,7 +671,8 @@
       'use strict';
 
       const CONFIG = {
-        photoIframeUrl: 'https://dene-.github.io/pok--ink-website/',
+        photoUrl: '',
+        photoCount: 669,
         latitude: 41.3474,
         longitude: 2.0431,
         timezone: 'Europe/Madrid',
@@ -753,8 +759,8 @@
         const deviceUrl = firstParam(params, ['deviceUrl', 'device_url']);
         if (deviceUrl) CONFIG.device.url = deviceUrl;
 
-        const photoUrl = firstParam(params, ['photoUrl', 'photo', 'photoIframeUrl']);
-        if (photoUrl) CONFIG.photoIframeUrl = photoUrl;
+        const photoUrl = firstParam(params, ['photoUrl', 'photo', 'photoImageUrl']);
+        if (photoUrl) CONFIG.photoUrl = photoUrl;
 
         const latitude = Number(firstParam(params, ['lat', 'latitude']));
         const longitude = Number(firstParam(params, ['lon', 'lng', 'longitude']));
@@ -1158,6 +1164,19 @@
         setText('battery', CONFIG.device.fallback.battery);
         setText('insideTemp', CONFIG.device.fallback.insideTemp);
         setText('insideHumidity', CONFIG.device.fallback.insideHumidity);
+      }
+
+      function selectPhotoUrl() {
+        if (CONFIG.photoUrl) return CONFIG.photoUrl;
+        const photoNumber = String(Math.floor(Math.random() * CONFIG.photoCount) + 1).padStart(3, '0');
+        return `./assets/photos/iceland-${photoNumber}.png`;
+      }
+
+      function applyPhotoFallback() {
+        const image = $('photoImage');
+        if (!image || image.src.endsWith('/iceland-001.png')) return;
+        image.classList.add('photoFallback');
+        image.src = './assets/photos/iceland-001.png';
       }
 
       function showError(text) {
@@ -1620,7 +1639,9 @@
       async function init() {
         applyUrlConfig();
 
-        $('photoFrame').src = CONFIG.photoIframeUrl;
+        const photoImage = $('photoImage');
+        photoImage.src = selectPhotoUrl();
+        photoImage.addEventListener('error', applyPhotoFallback, { once: true });
         setHTML('windIcon', windSvg());
         applyDeviceFallback();
         await applyInitialWeatherFallback();

@@ -32,7 +32,8 @@ Current pages:
 - `index.html`: full-screen random photo page. It chooses one image from an
   in-file array of Unsplash links and displays it edge-to-edge.
 - `dashboard.html`: weather display screen for the E1002 canvas. It uses a
-  fixed 800 by 480 layout and embeds `index.html` in a live iframe/photo panel.
+  fixed 800 by 480 layout and renders a local photo asset directly in the
+  photo panel for reliable embedded-device loading.
 
 ## Target Device
 
@@ -86,7 +87,9 @@ Primary references:
 
 SenseCraft HMI can show web content on the device through a web/iframe-style
 component. Pages in this repo are meant to be hosted and loaded into that live
-web surface.
+web surface. The dashboard itself avoids relying on a nested external iframe
+for its primary photo content because constrained device browsers may render
+the parent page while failing the nested frame.
 
 Important constraints:
 
@@ -99,7 +102,8 @@ Important constraints:
   paths, or APIs that require secrets in client-side code.
 - Assume the page is loaded in a constrained embedded browser surface. Keep CSS
   and JavaScript simple, self-contained, and deterministic.
-- For live iframes, make every page render useful content without user action.
+- For any live iframe surface, make every page render useful content without
+  user action.
 
 ## HTML And CSS Guidelines
 
