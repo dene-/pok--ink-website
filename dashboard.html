@@ -1627,13 +1627,16 @@
         const initial = Boolean(options.initial);
         window.__E1002_DEVICE_STATUS__ = 'loading';
         try {
-          const data = await fetchJsonWithRetry(CONFIG.device.url, {
+          const data = await fetchJsonWithRetry(() => freshJsonUrl(CONFIG.device.url), {
             attempts: initial ? CONFIG.device.fetch.initialAttempts : CONFIG.device.fetch.refreshAttempts,
             timeoutMs: CONFIG.device.fetch.timeoutMs,
             retryDelayMs: CONFIG.device.fetch.retryDelayMs,
             cache: 'no-store',
             credentials: 'omit',
-            headers: { 'Api-Key': CONFIG.device.apiKey }
+            // Match SenseCraft HMI's own client contract exactly. Although HTTP
+            // header names are formally case-insensitive, the device path has
+            // historically been less forgiving than desktop browsers.
+            headers: { 'api-key': CONFIG.device.apiKey }
           });
           const { battery, insideTemp, insideHumidity } = parseDeviceData(data);
 

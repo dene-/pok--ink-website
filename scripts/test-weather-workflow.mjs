@@ -49,6 +49,7 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(dashboard, /\.windValue \{[\s\S]*?font-size: 16px;[\s\S]*?max-width: 100%;/);
   assert.match(dashboard, /function parseDeviceData\(data\)/);
   assert.match(dashboard, /sensor API \$\{data\.code\}/);
+  assert.match(dashboard, /freshJsonUrl\(CONFIG\.device\.url\)/);
   assert.match(dashboard, /'api-key'/);
   assert.match(dashboard, /publishedMaxAgeMinutes: 90/);
   assert.match(dashboard, /emergencyMaxAgeMinutes: 90/);
