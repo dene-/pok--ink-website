@@ -700,7 +700,7 @@
           biasMaxAgeHours: 36
         },
 
-        // Enabled by default. The request is only made when the iframe URL includes
+        // Enabled by default. The request is only made when the dashboard URL includes
         // ?apikey=YOUR_KEY, #apikey=YOUR_KEY, or one of the accepted aliases below.
         device: {
           enabled: true,
@@ -1640,8 +1640,8 @@
         applyUrlConfig();
 
         const photoImage = $('photoImage');
-        photoImage.src = selectPhotoUrl();
         photoImage.addEventListener('error', applyPhotoFallback, { once: true });
+        photoImage.src = selectPhotoUrl();
         setHTML('windIcon', windSvg());
         applyDeviceFallback();
         await applyInitialWeatherFallback();
