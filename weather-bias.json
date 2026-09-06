@@ -1,0 +1,539 @@
+{
+  "schemaVersion": 2,
+  "modelType": "rolling-holdout",
+  "generated_at": "2026-09-06T16:01:26.717Z",
+  "location": {
+    "latitude": 41.3474,
+    "longitude": 2.0431,
+    "timezone": "Europe/Madrid"
+  },
+  "forecastSource": "open-meteo",
+  "forecastModel": "open-meteo-best-match",
+  "issueBucket": "evening",
+  "maxAgeHours": 36,
+  "adjustments": {
+    "1": {
+      "minC": {
+        "applied": false,
+        "delta": 0.3,
+        "samples": 98,
+        "trainingSamples": 73,
+        "validationSamples": 25,
+        "rawMae": 0.992,
+        "correctedMae": 1.116,
+        "improvementC": -0.124,
+        "reason": "no_validated_improvement"
+      },
+      "maxC": {
+        "applied": false,
+        "delta": -0.1,
+        "samples": 98,
+        "trainingSamples": 73,
+        "validationSamples": 25,
+        "rawMae": 0.828,
+        "correctedMae": 0.808,
+        "improvementC": 0.02,
+        "reason": "no_validated_improvement"
+      },
+      "periods": {
+        "AM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 197,
+          "validationSamples": 50,
+          "rawAccuracy": 0.78,
+          "correctedAccuracy": 0.88,
+          "wetFalsePositiveRate": null,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        },
+        "PM": {
+          "overrides": {},
+          "samples": 197,
+          "validationSamples": 50,
+          "rawAccuracy": 0.76,
+          "correctedAccuracy": 0.76,
+          "wetFalsePositiveRate": null,
+          "reasons": {}
+        }
+      }
+    },
+    "2": {
+      "minC": {
+        "applied": false,
+        "delta": -0.2,
+        "samples": 97,
+        "trainingSamples": 72,
+        "validationSamples": 25,
+        "rawMae": 1.06,
+        "correctedMae": 0.964,
+        "improvementC": 0.096,
+        "reason": "no_validated_improvement"
+      },
+      "maxC": {
+        "applied": false,
+        "delta": -0.1,
+        "samples": 97,
+        "trainingSamples": 72,
+        "validationSamples": 25,
+        "rawMae": 0.692,
+        "correctedMae": 0.68,
+        "improvementC": 0.012,
+        "reason": "no_validated_improvement"
+      },
+      "periods": {
+        "AM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 195,
+          "validationSamples": 49,
+          "rawAccuracy": 0.633,
+          "correctedAccuracy": 0.878,
+          "wetFalsePositiveRate": null,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        },
+        "PM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 195,
+          "validationSamples": 49,
+          "rawAccuracy": 0.673,
+          "correctedAccuracy": 0.755,
+          "wetFalsePositiveRate": null,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        }
+      }
+    },
+    "3": {
+      "minC": {
+        "applied": true,
+        "delta": -0.4,
+        "samples": 96,
+        "trainingSamples": 72,
+        "validationSamples": 24,
+        "rawMae": 1.117,
+        "correctedMae": 0.817,
+        "improvementC": 0.3,
+        "reason": "matching_bucket_validated"
+      },
+      "maxC": {
+        "applied": false,
+        "delta": -0.1,
+        "samples": 96,
+        "trainingSamples": 72,
+        "validationSamples": 24,
+        "rawMae": 0.654,
+        "correctedMae": 0.638,
+        "improvementC": 0.017,
+        "reason": "no_validated_improvement"
+      },
+      "periods": {
+        "AM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 193,
+          "validationSamples": 49,
+          "rawAccuracy": 0.571,
+          "correctedAccuracy": 0.878,
+          "wetFalsePositiveRate": null,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        },
+        "PM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 193,
+          "validationSamples": 49,
+          "rawAccuracy": 0.571,
+          "correctedAccuracy": 0.755,
+          "wetFalsePositiveRate": null,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        }
+      }
+    },
+    "4": {
+      "minC": {
+        "applied": true,
+        "delta": -0.4,
+        "samples": 95,
+        "trainingSamples": 71,
+        "validationSamples": 24,
+        "rawMae": 1.192,
+        "correctedMae": 0.95,
+        "improvementC": 0.242,
+        "reason": "matching_bucket_validated"
+      },
+      "maxC": {
+        "applied": false,
+        "delta": -0.1,
+        "samples": 95,
+        "trainingSamples": 71,
+        "validationSamples": 24,
+        "rawMae": 0.858,
+        "correctedMae": 0.867,
+        "improvementC": -0.008,
+        "reason": "no_validated_improvement"
+      },
+      "periods": {
+        "AM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 191,
+          "validationSamples": 48,
+          "rawAccuracy": 0.542,
+          "correctedAccuracy": 0.854,
+          "wetFalsePositiveRate": 1,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        },
+        "PM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 191,
+          "validationSamples": 48,
+          "rawAccuracy": 0.521,
+          "correctedAccuracy": 0.729,
+          "wetFalsePositiveRate": 1,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        }
+      }
+    },
+    "5": {
+      "minC": {
+        "applied": false,
+        "delta": -0.7,
+        "samples": 94,
+        "trainingSamples": 70,
+        "validationSamples": 24,
+        "rawMae": 0.904,
+        "correctedMae": 0.887,
+        "improvementC": 0.017,
+        "reason": "no_validated_improvement"
+      },
+      "maxC": {
+        "applied": true,
+        "delta": -1.1,
+        "samples": 94,
+        "trainingSamples": 70,
+        "validationSamples": 24,
+        "rawMae": 1.383,
+        "correctedMae": 1.242,
+        "improvementC": 0.142,
+        "reason": "matching_bucket_validated"
+      },
+      "periods": {
+        "AM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 189,
+          "validationSamples": 48,
+          "rawAccuracy": 0.625,
+          "correctedAccuracy": 0.771,
+          "wetFalsePositiveRate": 1,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        },
+        "PM": {
+          "overrides": {
+            "cloud": "sun"
+          },
+          "samples": 189,
+          "validationSamples": 48,
+          "rawAccuracy": 0.604,
+          "correctedAccuracy": 0.708,
+          "wetFalsePositiveRate": 1,
+          "reasons": {
+            "cloud": "matching_bucket"
+          }
+        }
+      }
+    }
+  },
+  "metrics": {
+    "sampleCount": 965,
+    "temperature": {
+      "horizons": {
+        "1": {
+          "minC": {
+            "applied": false,
+            "delta": 0.3,
+            "samples": 98,
+            "trainingSamples": 73,
+            "validationSamples": 25,
+            "rawMae": 0.992,
+            "correctedMae": 1.116,
+            "improvementC": -0.124,
+            "reason": "no_validated_improvement"
+          },
+          "maxC": {
+            "applied": false,
+            "delta": -0.1,
+            "samples": 98,
+            "trainingSamples": 73,
+            "validationSamples": 25,
+            "rawMae": 0.828,
+            "correctedMae": 0.808,
+            "improvementC": 0.02,
+            "reason": "no_validated_improvement"
+          }
+        },
+        "2": {
+          "minC": {
+            "applied": false,
+            "delta": -0.2,
+            "samples": 97,
+            "trainingSamples": 72,
+            "validationSamples": 25,
+            "rawMae": 1.06,
+            "correctedMae": 0.964,
+            "improvementC": 0.096,
+            "reason": "no_validated_improvement"
+          },
+          "maxC": {
+            "applied": false,
+            "delta": -0.1,
+            "samples": 97,
+            "trainingSamples": 72,
+            "validationSamples": 25,
+            "rawMae": 0.692,
+            "correctedMae": 0.68,
+            "improvementC": 0.012,
+            "reason": "no_validated_improvement"
+          }
+        },
+        "3": {
+          "minC": {
+            "applied": true,
+            "delta": -0.4,
+            "samples": 96,
+            "trainingSamples": 72,
+            "validationSamples": 24,
+            "rawMae": 1.117,
+            "correctedMae": 0.817,
+            "improvementC": 0.3,
+            "reason": "matching_bucket_validated"
+          },
+          "maxC": {
+            "applied": false,
+            "delta": -0.1,
+            "samples": 96,
+            "trainingSamples": 72,
+            "validationSamples": 24,
+            "rawMae": 0.654,
+            "correctedMae": 0.638,
+            "improvementC": 0.017,
+            "reason": "no_validated_improvement"
+          }
+        },
+        "4": {
+          "minC": {
+            "applied": true,
+            "delta": -0.4,
+            "samples": 95,
+            "trainingSamples": 71,
+            "validationSamples": 24,
+            "rawMae": 1.192,
+            "correctedMae": 0.95,
+            "improvementC": 0.242,
+            "reason": "matching_bucket_validated"
+          },
+          "maxC": {
+            "applied": false,
+            "delta": -0.1,
+            "samples": 95,
+            "trainingSamples": 71,
+            "validationSamples": 24,
+            "rawMae": 0.858,
+            "correctedMae": 0.867,
+            "improvementC": -0.008,
+            "reason": "no_validated_improvement"
+          }
+        },
+        "5": {
+          "minC": {
+            "applied": false,
+            "delta": -0.7,
+            "samples": 94,
+            "trainingSamples": 70,
+            "validationSamples": 24,
+            "rawMae": 0.904,
+            "correctedMae": 0.887,
+            "improvementC": 0.017,
+            "reason": "no_validated_improvement"
+          },
+          "maxC": {
+            "applied": true,
+            "delta": -1.1,
+            "samples": 94,
+            "trainingSamples": 70,
+            "validationSamples": 24,
+            "rawMae": 1.383,
+            "correctedMae": 1.242,
+            "improvementC": 0.142,
+            "reason": "matching_bucket_validated"
+          }
+        }
+      }
+    },
+    "icons": {
+      "horizons": {
+        "1": {
+          "AM": {
+            "samples": 197,
+            "validationSamples": 50,
+            "rawAccuracy": 0.78,
+            "correctedAccuracy": 0.88,
+            "wetFalsePositiveRate": null,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          },
+          "PM": {
+            "samples": 197,
+            "validationSamples": 50,
+            "rawAccuracy": 0.76,
+            "correctedAccuracy": 0.76,
+            "wetFalsePositiveRate": null,
+            "overrides": {},
+            "reasons": {}
+          }
+        },
+        "2": {
+          "AM": {
+            "samples": 195,
+            "validationSamples": 49,
+            "rawAccuracy": 0.633,
+            "correctedAccuracy": 0.878,
+            "wetFalsePositiveRate": null,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          },
+          "PM": {
+            "samples": 195,
+            "validationSamples": 49,
+            "rawAccuracy": 0.673,
+            "correctedAccuracy": 0.755,
+            "wetFalsePositiveRate": null,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          }
+        },
+        "3": {
+          "AM": {
+            "samples": 193,
+            "validationSamples": 49,
+            "rawAccuracy": 0.571,
+            "correctedAccuracy": 0.878,
+            "wetFalsePositiveRate": null,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          },
+          "PM": {
+            "samples": 193,
+            "validationSamples": 49,
+            "rawAccuracy": 0.571,
+            "correctedAccuracy": 0.755,
+            "wetFalsePositiveRate": null,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          }
+        },
+        "4": {
+          "AM": {
+            "samples": 191,
+            "validationSamples": 48,
+            "rawAccuracy": 0.542,
+            "correctedAccuracy": 0.854,
+            "wetFalsePositiveRate": 1,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          },
+          "PM": {
+            "samples": 191,
+            "validationSamples": 48,
+            "rawAccuracy": 0.521,
+            "correctedAccuracy": 0.729,
+            "wetFalsePositiveRate": 1,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          }
+        },
+        "5": {
+          "AM": {
+            "samples": 189,
+            "validationSamples": 48,
+            "rawAccuracy": 0.625,
+            "correctedAccuracy": 0.771,
+            "wetFalsePositiveRate": 1,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          },
+          "PM": {
+            "samples": 189,
+            "validationSamples": 48,
+            "rawAccuracy": 0.604,
+            "correctedAccuracy": 0.708,
+            "wetFalsePositiveRate": 1,
+            "overrides": {
+              "cloud": "sun"
+            },
+            "reasons": {
+              "cloud": "matching_bucket"
+            }
+          }
+        }
+      }
+    }
+  }
+}
