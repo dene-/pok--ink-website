@@ -6,9 +6,8 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    # Two non-top-of-hour attempts give each hourly update a retry window.
-    - cron: '17 * * * *'
-    - cron: '47 * * * *'
+    # Best-effort scheduling: four off-hour opportunities to recover from a missed run.
+    - cron: '7,22,37,52 * * * *'
 
 permissions:
   contents: write
@@ -17,7 +16,7 @@ permissions:
 
 concurrency:
   group: update-weather-data
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update-weather:
@@ -35,6 +34,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Verify weather and publication contracts
+        run: |
+          node --test scripts/test-fetch-json.mjs scripts/test-weather-bias.mjs scripts/test-update-sensor.mjs scripts/test-prepare-pages-site.mjs scripts/test-weather-workflow.mjs
+          node scripts/test-weather-periods.mjs
+          node --test scripts/test-dashboard-recovery.mjs
+
       - name: Restore generated weather history
         run: |
           if git fetch origin weather-data:refs/remotes/origin/weather-data; then
@@ -50,10 +55,29 @@ jobs:
         run: node scripts/update-weather.mjs
 
       - name: Generate SenseCraft sensor snapshot
+        id: sensor
+        continue-on-error: true
         env:
           SENSECRAFT_API_KEY: ${{ secrets.SENSECRAFT_API_KEY }}
           SENSOR_OUTPUT_DIR: ${{ runner.temp }}/weather-data
         run: node scripts/update-sensor.mjs
+
+      - name: Record unavailable sensor
+        if: steps.sensor.outcome == 'failure'
+        run: |
+          echo '::warning::SenseCraft snapshot unavailable; publishing fresh weather without sensor readings.'
+          echo 'null' > "$RUNNER_TEMP/weather-data/sensor.json"
+
+      - name: Summarize data freshness
+        env:
+          WEATHER_OUTPUT_DIR: ${{ runner.temp }}/weather-data
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const weather = JSON.parse(readFileSync(`${process.env.WEATHER_OUTPUT_DIR}/weather.json`, 'utf8'));
+          const sensor = JSON.parse(readFileSync(`${process.env.WEATHER_OUTPUT_DIR}/sensor.json`, 'utf8'));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Weather generated: ${weather.generated_at}\n\nObservation (local): ${weather.current.time}\n\nSensor: ${sensor?.generated_at || 'unavailable'}\n`);
+          JS
 
       - name: Publish generated weather branch
         env:

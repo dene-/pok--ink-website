@@ -2,6 +2,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fetchJson } from './fetch-json.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +22,7 @@ export function parseSensorResponse(data) {
     insideTemp: result?.sensor?.temp,
     insideHumidity: result?.sensor?.humidity
   };
-  if (!Object.values(sensor).every((value) => Number.isFinite(Number(value)))) {
+  if (!Object.values(sensor).every((value) => value !== null && value !== '' && typeof value !== 'boolean' && Number.isFinite(Number(value)))) {
     throw new Error('missing sensor fields');
   }
   return sensor;
@@ -32,12 +33,13 @@ export async function updateSensor(options = {}) {
   if (!apiKey) throw new Error('SENSECRAFT_API_KEY is required');
   const url = options.url || process.env.SENSECRAFT_DEVICE_URL || DEFAULT_SENSOR_URL;
   const fetchImpl = options.fetchImpl || fetch;
-  const response = await fetchImpl(url, {
-    cache: 'no-store',
+  const sensor = parseSensorResponse(await fetchJson(fetchImpl, url, {
+    attempts: options.attempts ?? 3,
+    retryDelayMs: options.retryDelayMs ?? 1000,
+    timeoutMs: options.timeoutMs ?? 15000,
+    requestLabel: 'SenseCraft API',
     headers: { 'api-key': apiKey }
-  });
-  if (!response.ok) throw new Error(`SenseCraft API HTTP ${response.status}`);
-  const sensor = parseSensorResponse(await response.json());
+  }));
   const output = {
     generated_at: (options.now || new Date()).toISOString(),
     source: 'sensecraft-hmi',

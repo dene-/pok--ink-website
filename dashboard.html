@@ -807,9 +807,13 @@
         if (el) el.innerHTML = html;
       }
 
+      function isNumeric(value) {
+        return value !== null && value !== '' && typeof value !== 'boolean' && Number.isFinite(Number(value));
+      }
+
       function fixed(value, decimals = 1) {
         const n = Number(value);
-        return Number.isFinite(n) ? n.toFixed(decimals) : decimals ? '--.-' : '--';
+        return isNumeric(value) ? n.toFixed(decimals) : decimals ? '--.-' : '--';
       }
 
       function datePartsFromISODate(isoDate) {
@@ -913,6 +917,19 @@
         if ([71, 73, 75, 77, 85, 86].includes(c)) return 'snow';
         if ([95, 96, 99].includes(c)) return 'storm';
         return 'cloud';
+      }
+
+      function currentWeatherIconType(current) {
+        const code = current.openweather_condition_id;
+        if (Number.isInteger(code)) {
+          if (code >= 200 && code < 300) return 'storm';
+          if ((code >= 300 && code < 400) || (code >= 500 && code < 600)) return 'rain';
+          if (code >= 600 && code < 700) return 'snow';
+          if (code >= 700 && code < 800) return 'fog';
+          if (code === 800) return 'sun';
+          if (code >= 801 && code <= 804) return 'cloud';
+        }
+        return weatherIconType(current.weather_code);
       }
 
       function weatherPeriodType(code) {
@@ -1176,7 +1193,7 @@
         const insideTemp = nestedValue(result, 'sensor.temp');
         const insideHumidity = nestedValue(result, 'sensor.humidity');
         const values = { battery, insideTemp, insideHumidity };
-        if (!Object.values(values).every((value) => Number.isFinite(Number(value)))) {
+        if (!Object.values(values).every((value) => isNumeric(value))) {
           throw new Error('missing sensor fields');
         }
         return values;
@@ -1207,8 +1224,12 @@
 
       function parseSensorData(data) {
         if (!data || typeof data !== 'object') throw new Error('empty sensor snapshot');
+        const age = Date.now() - Date.parse(data.generated_at);
+        if (!Number.isFinite(age) || age < -15 * 60 * 1000 || age > 90 * 60 * 1000) {
+          throw new Error('stale sensor snapshot');
+        }
         const sensor = data.result ? parseDeviceData(data) : data;
-        if (!['battery', 'insideTemp', 'insideHumidity'].every((key) => Number.isFinite(Number(sensor[key])))) {
+        if (!['battery', 'insideTemp', 'insideHumidity'].every((key) => isNumeric(sensor[key]))) {
           throw new Error('missing sensor fields');
         }
         return sensor;
@@ -1301,11 +1322,17 @@
       }
 
       function validateCurrentWeatherData(data) {
-        if (!Number.isFinite(Number(data?.current?.temperature_2m))) throw new Error('missing current temperature');
+        if (!isNumeric(data?.current?.temperature_2m)) throw new Error('missing current temperature');
       }
 
       function weatherDataTimestamp(data) {
-        const timestamp = new Date(data?.generated_at || data?.current?.time || '').getTime();
+        const value = data?.generated_at;
+        if (!value && data?.current?.time && Number.isFinite(data.utc_offset_seconds)) {
+          // Open-Meteo current.time is local to the requested timezone, not the browser.
+          const local = Date.parse(`${data.current.time}Z`);
+          return Number.isFinite(local) ? local - data.utc_offset_seconds * 1000 : 0;
+        }
+        const timestamp = new Date(value || '').getTime();
         return Number.isFinite(timestamp) ? timestamp : 0;
       }
 
@@ -1325,7 +1352,9 @@
         const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
         const generatedAt = new Date(data.generated_at).getTime();
         const maxAgeMs = CONFIG.weatherFetch.cacheMaxAgeHours * 60 * 60 * 1000;
-        const isRecentEnough = Number.isFinite(generatedAt) && Date.now() - generatedAt <= maxAgeMs;
+        const age = Date.now() - generatedAt;
+        if (age < -15 * 60 * 1000) throw new Error('future fallback weather.json');
+        const isRecentEnough = Number.isFinite(generatedAt) && age >= -15 * 60 * 1000 && age <= maxAgeMs;
         if (firstDay !== todayISOInTimezone() && !isRecentEnough) throw new Error('stale fallback weather.json');
       }
 
@@ -1333,7 +1362,9 @@
         validateWeatherData(data);
         const firstDay = Array.isArray(data.daily.time) ? data.daily.time[0] : '';
         const generatedAt = new Date(data.generated_at).getTime();
-        const isRecentEnough = Number.isFinite(generatedAt) && now.getTime() - generatedAt <= maxAgeMs;
+        const age = now.getTime() - generatedAt;
+        if (age < -15 * 60 * 1000) throw new Error('future generated weather.json');
+        const isRecentEnough = Number.isFinite(generatedAt) && age <= maxAgeMs;
         if (!isRecentEnough && (requireRecentTimestamp || firstDay !== todayISOInTimezone())) {
           throw new Error('stale generated weather.json');
         }
@@ -1407,14 +1438,11 @@
           : current.temperature_2m;
         setText('feelsLike', fixed(feelsLike, 1));
         setText('currentDesc', current.description || weatherDescription(current.weather_code));
-        setHTML('currentIcon', iconSvg(weatherIconType(current.weather_code), 3));
+        setHTML('currentIcon', iconSvg(currentWeatherIconType(current), 3));
 
-        const currentMax = Number.isFinite(Number(current.temperature_max))
-          ? current.temperature_max
-          : Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined;
-        const currentMin = Number.isFinite(Number(current.temperature_min))
-          ? current.temperature_min
-          : Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined;
+        // OpenWeather current min/max describe nearby readings, not today's range.
+        const currentMax = Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined;
+        const currentMin = Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined;
         setText('todayMax', fixed(currentMax, 1));
         setText('todayMin', fixed(currentMin, 1));
 
@@ -1553,6 +1581,7 @@
           const hasWeatherData = cached.data && cached.data.daily && Array.isArray(cached.data.daily.time);
 
           if (!isFreshEnough || !hasWeatherData) return false;
+          validateGeneratedWeatherData(cached.data, new Date(), maxAgeMs, true);
           if (weatherHasData && weatherDataTimestamp(cached.data) < weatherDataTimestamp(activeWeatherData)) {
             return false;
           }
@@ -1582,8 +1611,9 @@
       }
 
       async function applyInitialWeatherFallback() {
-        if (applyEmbeddedWeather()) return true;
-        if (applyCachedWeather()) return true;
+        const embedded = applyEmbeddedWeather();
+        const cached = applyCachedWeather();
+        if (embedded || cached) return true;
         try {
           const data = await fetchLocalWeather();
           applyWeatherData(data);
@@ -1603,15 +1633,12 @@
           let biasModel = null;
           try {
             const generated = await fetchWeatherWithOptionalBias(fetchGeneratedWeather, fetchWeatherBias);
+            if (weatherHasData && weatherDataTimestamp(generated.data) < weatherDataTimestamp(activeWeatherData)) return;
             data = generated.data;
             biasModel = generated.biasModel;
             if (generated.biasError && CONFIG.debug) showError(`Bias: ${generated.biasError.message}`);
           } catch (generatedError) {
-            const cacheApplied = applyCachedWeather();
-            if (cacheApplied && !shouldUseEmergencyWeather()) {
-              if (CONFIG.debug) showError(`Weather: cache; generated ${generatedError.message}`);
-              return;
-            }
+            applyCachedWeather();
 
             const previousSource = weatherSource;
             let localError = null;
@@ -1694,7 +1721,8 @@
           const { battery, insideTemp, insideHumidity } = parseDeviceData(data);
           applySensorData({ battery, insideTemp, insideHumidity });
         } catch (error) {
-          if (!deviceHasData) applyDeviceFallback();
+          applyDeviceFallback();
+          deviceHasData = false;
           window.__E1002_DEVICE_STATUS__ = `error: ${error.message}`;
           showError(`Device: ${error.message}`);
         }

@@ -405,7 +405,7 @@ test('weather update runner overlays current conditions from OpenWeather', async
             ok: true,
             status: 200,
             json: async () => ({
-              weather: [{ description: 'overcast clouds' }],
+              weather: [{ id: 804, description: 'overcast clouds' }],
               main: { temp: 32, feels_like: 39.4, temp_min: 31.7, temp_max: 35.2, humidity: 58 },
               wind: { speed: 5, gust: 7, deg: 210 },
               dt: 1780034700
@@ -437,6 +437,7 @@ test('weather update runner overlays current conditions from OpenWeather', async
     assert.equal(weather.current.wind_gust_10m, 25.2);
     assert.equal(weather.current.wind_direction_10m, 210);
     assert.equal(weather.current.description, 'overcast clouds');
+    assert.equal(weather.current.openweather_condition_id, 804);
     assert.equal(weather.current_source, 'openweather');
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -520,7 +521,11 @@ test('weather update runner rejects OpenWeather current data without feels-like 
           return {
             ok: true,
             status: 200,
-            json: async () => buildForecast('2026-05-29')
+            json: async () => {
+              const forecast = buildForecast('2026-05-29');
+              forecast.current.apparent_temperature = 24;
+              return forecast;
+            }
           };
         },
         log: () => {}

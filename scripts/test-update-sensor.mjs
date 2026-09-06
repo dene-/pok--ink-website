@@ -37,3 +37,7 @@ test('writes a keyless sensor snapshot without logging the API key', async () =>
     await rm(outputDir, { recursive: true, force: true });
   }
 });
+
+test('rejects null sensor fields instead of publishing zero readings', () => {
+  assert.throws(() => parseSensorResponse({ result: { battery: { level: null }, sensor: { temp: 25, humidity: 50 } } }), /missing sensor/);
+});

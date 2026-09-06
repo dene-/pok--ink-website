@@ -27,7 +27,13 @@ export async function preparePagesSite({ sourceDir, weatherPath, sensorPath, out
   }
 
   const weatherText = await readFile(weatherFile, 'utf8');
-  const sensorText = await readFile(sensorFile, 'utf8');
+  let sensorText = 'null';
+  try {
+    sensorText = await readFile(sensorFile, 'utf8');
+    JSON.parse(sensorText);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   const weather = JSON.parse(weatherText);
   const dashboardPath = path.join(output, 'dashboard.html');
   const dashboard = await readFile(dashboardPath, 'utf8');

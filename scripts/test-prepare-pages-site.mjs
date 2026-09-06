@@ -46,6 +46,11 @@ test('prepares a Pages site with embedded and same-origin weather', async () => 
     assert.match(dashboard, /id="sensorBootstrap" type="application\/json">\{/);
     assert.equal(await readFile(path.join(outputDir, 'index.html'), 'utf8'), 'photo page');
     assert.equal(existsSync(path.join(outputDir, '.github')), false);
+    await rm(sensorPath);
+    await preparePagesSite({ sourceDir, weatherPath, sensorPath, outputDir });
+    assert.equal(JSON.parse(await readFile(path.join(outputDir, 'sensor.json'), 'utf8')), null);
+    assert.deepEqual(JSON.parse(await readFile(path.join(outputDir, 'weather.json'), 'utf8')), weather);
+
   } finally {
     await rm(root, { recursive: true, force: true });
   }

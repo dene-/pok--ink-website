@@ -26,20 +26,21 @@ test('weather workflow deploys a current same-origin fallback through a Pages ar
   assert.match(artifact, /path: \$\{\{ runner\.temp \}\}\/pages-site/);
   assert.match(workflow, /deploy-pages:\s*\n\s+needs: update-weather/);
   assert.match(workflow, /uses: actions\/deploy-pages@v5/);
-  assert.match(workflow, /- cron: '17 \* \* \* \*'/);
-  assert.match(workflow, /- cron: '47 \* \* \* \*'/);
-  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /- cron: '7,22,37,52 \* \* \* \*'/);
+  assert.match(workflow, /cancel-in-progress: false/);
   assert.match(workflow, /update-weather:\s*\n\s+runs-on: ubuntu-latest\s*\n\s+timeout-minutes: 10/);
   assert.match(workflow, /deploy-pages:\s*\n\s+needs: update-weather\s*\n\s+timeout-minutes: 10/);
   assert.match(workflow, /REQUIRE_OPENWEATHER_API_KEY: 'true'/);
   assert.match(workflow, /SENSECRAFT_API_KEY: \$\{\{ secrets\.SENSECRAFT_API_KEY \}\}/);
   assert.match(workflow, /node scripts\/update-sensor\.mjs/);
+  assert.match(workflow, /id: sensor\s+continue-on-error: true/);
+  assert.match(workflow, /if: steps.sensor.outcome == 'failure'/);
   assert.match(workflow, /cp \"\$WEATHER_OUTPUT_DIR\"\/sensor\.json/);
   assert.match(workflow, /SENSOR_PATH: \$\{\{ runner\.temp \}\}\/weather-data\/sensor\.json/);
 
   const updateWeather = dashboard.slice(dashboard.indexOf('async function updateWeather'));
   const localFallback = updateWeather.indexOf('fetchLocalWeather()');
-  const existingDataFallback = updateWeather.indexOf('if (weatherHasData &&');
+  const existingDataFallback = updateWeather.indexOf('if (weatherHasData && !CONFIG.liveWeather');
   assert.ok(localFallback >= 0, 'runtime has a same-origin weather fallback');
   assert.ok(existingDataFallback >= 0, 'runtime preserves usable existing weather data');
   assert.ok(localFallback < existingDataFallback, 'same-origin fallback is attempted before preserving an old snapshot');

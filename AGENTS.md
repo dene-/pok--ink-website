@@ -166,9 +166,13 @@ For `dashboard.html`:
   the `SENSECRAFT_API_KEY` Actions secret and published as `sensor.json`; the
   dashboard embeds that snapshot into the Pages artifact so the device does
   not need to receive or expose an API key in its URL.
-- The weather workflow makes two non-top-of-hour attempts per hour, requires a
+- The weather workflow makes four non-top-of-hour attempts per hour, requires a
   working `OPENWEATHER_API_KEY` for current conditions, and fails rather than
   silently publishing forecast data as current data.
+- GitHub scheduled triggers are best effort and may be delayed or dropped. In-progress
+  publication is allowed to finish. API requests have bounded timeouts and retries;
+  a sensor outage publishes a null snapshot without blocking fresh weather. Sensor
+  snapshots older than 90 minutes render as unavailable.
 - Generated weather uses OpenWeather current conditions (with the
   `OPENWEATHER_API_KEY` GitHub Actions secret) and Open-Meteo hourly/daily
   forecast and archive data. The OpenWeather key must remain server-side in the

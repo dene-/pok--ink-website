@@ -2,6 +2,7 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fetchJson } from './fetch-json.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
@@ -88,28 +89,6 @@ async function readJsonIfExists(filePath) {
   }
 }
 
-async function fetchJson(fetchImpl, url, options = {}) {
-  const attempts = Math.max(1, Number(options.attempts) || 1);
-  const retryDelayMs = Math.max(0, Number(options.retryDelayMs) || 0);
-  const requestLabel = options.requestLabel || url;
-  let lastError;
-
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      const response = await fetchImpl(url, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`${requestLabel} HTTP ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      lastError = error;
-      if (attempt < attempts && retryDelayMs) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
-      }
-    }
-  }
-
-  throw lastError;
-}
-
 function localDateTimeFromUnixSeconds(value, timezone) {
   const date = new Date(Number(value) * 1000);
   if (!Number.isFinite(date.getTime())) throw new Error('OpenWeather returned an invalid observation time');
@@ -131,9 +110,10 @@ function localDateTimeFromUnixSeconds(value, timezone) {
 }
 
 function applyOpenWeatherCurrent(weather, current, config) {
-  const temperature = Number(current?.main?.temp);
+  const temperature = current?.main?.temp;
   if (!Number.isFinite(temperature)) throw new Error('OpenWeather returned no current temperature');
 
+  if (!Number.isFinite(current?.main?.feels_like)) throw new Error('missing current temperature or feels-like temperature');
   weather.current.temperature_2m = temperature;
   weather.current.time = localDateTimeFromUnixSeconds(current.dt, config.timezone);
 
@@ -157,6 +137,9 @@ function applyOpenWeatherCurrent(weather, current, config) {
 
   const windDirection = Number(current?.wind?.deg);
   if (Number.isFinite(windDirection)) weather.current.wind_direction_10m = windDirection;
+
+  const conditionId = current?.weather?.[0]?.id;
+  if (Number.isInteger(conditionId)) weather.current.openweather_condition_id = conditionId;
 
   const description = current?.weather?.[0]?.description;
   if (typeof description === 'string' && description.trim()) {
