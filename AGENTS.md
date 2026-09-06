@@ -195,6 +195,10 @@ For `dashboard.html`:
   rolling estimate and a recent held-out validation window; icon corrections
   follow the same validation gate. Incompatible or non-improving corrections
   must fail open to the raw forecast.
+- Fresh embedded weather and published sensor snapshots must render without startup
+  API requests. SenseCraft can time out while waiting for network idle even after
+  the visible page is complete. Long-lived browser pages still refresh on their
+  configured interval; missing or stale weather retains its recovery path.
 - Runtime weather JSON requests use cache-busting and prefer a newer same-origin
   generated artifact over retaining an older embedded snapshot when the remote
   generated-data request fails.

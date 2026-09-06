@@ -1739,12 +1739,14 @@
         await applyInitialWeatherFallback();
         applyEmbeddedSensor();
 
-        // This first await is intentional. The script is type="module", so top-level
-        // await keeps the first page load from completing until the initial weather
-        // and sensor requests have either succeeded, timed out, or fallen back to cache.
+        // SenseCraft captures the page remotely and may wait for network idle.
+        // A fresh published snapshot needs no startup API requests: unreachable
+        // providers would otherwise hold a complete screen past its render timeout.
+        const needsInitialWeather = !weatherHasData || shouldUseEmergencyWeather() || CONFIG.liveWeather;
+        const hasPublishedSensor = Boolean($('sensorBootstrap')?.textContent.trim());
         await Promise.allSettled([
-          updateWeather({ initial: true }),
-          updateDevice({ initial: true })
+          needsInitialWeather ? updateWeather({ initial: true }) : Promise.resolve(),
+          hasPublishedSensor ? Promise.resolve() : updateDevice({ initial: true })
         ]);
 
         window.__E1002_READY__ = true;

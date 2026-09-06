@@ -82,3 +82,25 @@ test('today min/max use daily forecasts rather than nearby current observations'
   assert.equal(ctx.values.todayMin, '21.0');
   assert.equal(ctx.values.todayMax, '35.0');
 });
+
+test('a published snapshot renders without startup API requests that can stall capture', async () => {
+  const ctx = context();
+  ctx.document.getElementById = (id) => id === 'photoImage'
+    ? { addEventListener() {}, src: '' }
+    : id === 'sensorBootstrap' ? { textContent: 'null' } : null;
+  ctx.window.setInterval = () => {};
+  await vm.runInContext(`
+    globalThis.requests = 0;
+    applyUrlConfig = () => {};
+    applyInitialWeatherFallback = async () => {
+      weatherHasData = true;
+      activeWeatherData = { generated_at: new Date().toISOString() };
+    };
+    updateWeather = async () => { globalThis.requests += 1; };
+    updateDevice = async () => { globalThis.requests += 1; };
+    globalThis.awaitInit = init();
+  `, ctx);
+  await ctx.awaitInit;
+  assert.equal(ctx.requests, 0);
+  assert.equal(ctx.window.__E1002_READY__, true);
+});
